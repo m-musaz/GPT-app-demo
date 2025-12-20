@@ -453,6 +453,7 @@ app.post('/mcp', async (req: Request, res: Response) => {
   if (!token || !validateAccessToken(token)) {
     // Return 401 with WWW-Authenticate header per RFC 9728
     // This tells the client where to get authorization
+    const requestId = req.body.id !== undefined ? req.body.id : null;
     res.setHeader('WWW-Authenticate', `Bearer resource="${baseUrl}/mcp", as_uri="${baseUrl}"`);
     return res.status(401).json({
       jsonrpc: '2.0',
@@ -464,21 +465,24 @@ app.post('/mcp', async (req: Request, res: Response) => {
           resource: `${baseUrl}/mcp`,
         }
       },
-      id: req.body.id || null,
+      id: requestId,
     });
   }
 
   const { method, params, id, jsonrpc } = req.body;
   const userId = DEFAULT_USER_ID;
   
+  // Properly handle id (can be 0, string, or null)
+  const requestId = id !== undefined ? id : null;
+  
   // Log full request for debugging
-  console.log('MCP Request:', JSON.stringify({ method, params, id, jsonrpc }));
+  console.log('MCP Request:', JSON.stringify({ method, params, id: requestId, jsonrpc }));
 
   if (!method) {
     return res.status(400).json({
       jsonrpc: '2.0',
       error: { code: -32600, message: 'Invalid request: missing method' },
-      id: id || null,
+      id: requestId,
     });
   }
 
@@ -487,16 +491,16 @@ app.post('/mcp', async (req: Request, res: Response) => {
     const response = {
       jsonrpc: jsonrpc || '2.0',
       result,
-      id: id || null,
+      id: requestId,
     };
     console.log('MCP Response:', JSON.stringify(response));
     res.json(response);
   } catch (err: any) {
     console.error('MCP error:', err);
     const errorResponse = {
-      jsonrpc: req.body.jsonrpc || '2.0',
+      jsonrpc: jsonrpc || '2.0',
       error: { code: -32603, message: err.message },
-      id: req.body.id || null,
+      id: requestId,
     };
     console.log('MCP Error Response:', JSON.stringify(errorResponse));
     res.json(errorResponse);
