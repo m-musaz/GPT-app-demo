@@ -1,98 +1,67 @@
-import { defineConfig, type Plugin } from 'vite';
+import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
 
-/**
- * Plugin to create fully self-contained HTML files for ChatGPT widgets.
- * All JS and CSS are inlined directly into the HTML.
- */
-function singleFilePlugin(): Plugin {
-  return {
-    name: 'single-file-html',
-    enforce: 'post',
-    apply: 'build',
-    
-    generateBundle(_, bundle) {
-      // Collect all JS chunks
-      const jsChunks: Map<string, string> = new Map();
-      const cssChunks: Map<string, string> = new Map();
-      
-      for (const [name, chunk] of Object.entries(bundle)) {
-        if (chunk.type === 'chunk' && name.endsWith('.js')) {
-          jsChunks.set(name, chunk.code);
-        }
-        if (chunk.type === 'asset' && name.endsWith('.css')) {
-          cssChunks.set(name, chunk.source as string);
-        }
-      }
-      
-      // Combine all JS code into one bundle
-      // Order: shared chunks first, then entry chunks
-      const sharedJs: string[] = [];
-      const entryJs: Map<string, string> = new Map();
-      
-      for (const [name, code] of jsChunks) {
-        if (name.includes('all-') || name.includes('main-')) {
-          sharedJs.push(code);
-        } else {
-          entryJs.set(name, code);
-        }
-      }
-      
-      // Merge all CSS
-      const allCss = Array.from(cssChunks.values()).join('\n');
-      
-      // Merge all JS (shared first, then entries)
-      // Remove external imports since we're bundling everything
-      let allJs = [...sharedJs, ...entryJs.values()].join('\n');
-      
-      // Remove import/export statements that reference files
-      allJs = allJs.replace(/import\s*\{[^}]*\}\s*from\s*["'][^"']+\.js["'];?/g, '');
-      allJs = allJs.replace(/import\s+["'][^"']+\.js["'];?/g, '');
-      allJs = allJs.replace(/export\s*\{[^}]*\};?/g, '');
-      
-      // Process HTML files
-      for (const [name, chunk] of Object.entries(bundle)) {
-        if (chunk.type !== 'asset' || !name.endsWith('.html')) continue;
+export default defineConfig({
+  plugins: [
+    react(),
+    // Plugin to inline all assets into HTML for ChatGPT sandbox
+    {
+      name: 'vite-plugin-singlefile-widget',
+      enforce: 'post',
+      generateBundle(_, bundle) {
+        const htmlFiles = Object.keys(bundle).filter(name => name.endsWith('.html'));
+        const cssFiles = Object.keys(bundle).filter(name => name.endsWith('.css'));
+        const jsFiles = Object.keys(bundle).filter(name => name.endsWith('.js'));
         
-        let html = chunk.source as string;
-        
-        // Remove all external script and link tags
-        html = html.replace(/<script[^>]*src=["'][^"']*["'][^>]*><\/script>/g, '');
-        html = html.replace(/<link[^>]*rel=["']stylesheet["'][^>]*>/g, '');
-        html = html.replace(/<link[^>]*rel=["']modulepreload["'][^>]*>/g, '');
-        
-        // Insert inline styles before </head>
-        if (allCss) {
-          html = html.replace('</head>', `<style>${allCss}</style>\n</head>`);
+        for (const htmlName of htmlFiles) {
+          const htmlChunk = bundle[htmlName];
+          if (htmlChunk.type !== 'asset') continue;
+          
+          let html = htmlChunk.source as string;
+          
+          // Remove modulepreload links (we're inlining everything)
+          html = html.replace(/<link[^>]*rel=["']modulepreload["'][^>]*>/g, '');
+          
+          // Inline CSS
+          for (const cssName of cssFiles) {
+            const cssChunk = bundle[cssName];
+            if (cssChunk.type !== 'asset') continue;
+            
+            const cssContent = cssChunk.source as string;
+            const cssRegex = new RegExp(`<link[^>]*href=["'][^"']*${cssName.split('/').pop()}["'][^>]*>`, 'g');
+            html = html.replace(cssRegex, `<style>${cssContent}</style>`);
+          }
+          
+          // Inline JS
+          for (const jsName of jsFiles) {
+            const jsChunk = bundle[jsName];
+            if (jsChunk.type !== 'chunk') continue;
+            
+            const jsContent = jsChunk.code;
+            const jsRegex = new RegExp(`<script[^>]*src=["'][^"']*${jsName.split('/').pop()}["'][^>]*></script>`, 'g');
+            html = html.replace(jsRegex, `<script type="module">${jsContent}</script>`);
+          }
+          
+          // Clean up empty lines
+          html = html.replace(/^\s*\n/gm, '');
+          
+          htmlChunk.source = html;
         }
         
-        // Insert inline script before </body>
-        if (allJs) {
-          html = html.replace('</body>', `<script type="module">${allJs}</script>\n</body>`);
-        }
-        
-        chunk.source = html;
-      }
-      
-      // Remove standalone JS and CSS files from bundle
-      for (const name of Object.keys(bundle)) {
-        if (name.endsWith('.js') || name.endsWith('.css')) {
+        // Remove standalone CSS and JS files
+        for (const name of [...cssFiles, ...jsFiles]) {
           delete bundle[name];
         }
-      }
+      },
     },
-  };
-}
-
-export default defineConfig({
-  plugins: [react(), singleFilePlugin()],
+  ],
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    // Inline all assets
     assetsInlineLimit: 100000000,
     cssCodeSplit: false,
-    minify: 'esbuild',
     rollupOptions: {
       input: {
         'pending-invites': resolve(__dirname, 'pending-invites.html'),
@@ -100,8 +69,9 @@ export default defineConfig({
         'respond-result': resolve(__dirname, 'respond-result.html'),
       },
       output: {
-        // Force all code into one chunk
-        manualChunks: () => 'all',
+        // Single chunk per entry
+        manualChunks: undefined,
+        inlineDynamicImports: false,
       },
     },
   },
@@ -109,3 +79,4 @@ export default defineConfig({
     port: 5174,
   },
 });
+
