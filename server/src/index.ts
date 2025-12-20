@@ -210,10 +210,90 @@ app.post('/api/respond', async (req: Request, res: Response) => {
 });
 
 // ============================================
+// OAuth 2.0 Discovery Endpoints (Required by ChatGPT)
+// ============================================
+
+// Get the base URL for this server
+function getBaseUrl(req: Request): string {
+  const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+  const host = req.headers['x-forwarded-host'] || req.headers.host || 'localhost:3000';
+  return `${protocol}://${host}`;
+}
+
+// OAuth 2.0 Authorization Server Metadata
+app.get('/.well-known/oauth-authorization-server', (req: Request, res: Response) => {
+  const baseUrl = getBaseUrl(req);
+  
+  res.json({
+    issuer: baseUrl,
+    authorization_endpoint: `${baseUrl}/oauth/authorize`,
+    token_endpoint: `${baseUrl}/oauth/token`,
+    token_endpoint_auth_methods_supported: ['client_secret_post', 'client_secret_basic'],
+    grant_types_supported: ['client_credentials', 'authorization_code'],
+    response_types_supported: ['code'],
+    scopes_supported: ['mcp'],
+    code_challenge_methods_supported: ['S256'],
+  });
+});
+
+// OpenID Connect Discovery
+app.get('/.well-known/openid-configuration', (req: Request, res: Response) => {
+  const baseUrl = getBaseUrl(req);
+  
+  res.json({
+    issuer: baseUrl,
+    authorization_endpoint: `${baseUrl}/oauth/authorize`,
+    token_endpoint: `${baseUrl}/oauth/token`,
+    token_endpoint_auth_methods_supported: ['client_secret_post', 'client_secret_basic'],
+    grant_types_supported: ['client_credentials', 'authorization_code'],
+    response_types_supported: ['code'],
+    scopes_supported: ['openid', 'mcp'],
+    subject_types_supported: ['public'],
+    id_token_signing_alg_values_supported: ['RS256'],
+    code_challenge_methods_supported: ['S256'],
+  });
+});
+
+// OAuth Authorization Endpoint (for authorization code flow)
+app.get('/oauth/authorize', (req: Request, res: Response) => {
+  const { client_id, redirect_uri, response_type, state, code_challenge, code_challenge_method } = req.query;
+  
+  // For client_credentials, we auto-approve and redirect with a code
+  const { clientId } = getOAuthCredentials();
+  
+  if (client_id !== clientId) {
+    return res.status(400).json({ error: 'invalid_client' });
+  }
+  
+  if (response_type !== 'code') {
+    return res.status(400).json({ error: 'unsupported_response_type' });
+  }
+  
+  // Generate authorization code
+  const authCode = generateAccessToken(clientId); // Reusing token generator for simplicity
+  
+  // Store code challenge for PKCE verification (simplified - in production use proper storage)
+  if (code_challenge) {
+    // Store for later verification - simplified implementation
+    (global as any).__pkce_challenges = (global as any).__pkce_challenges || {};
+    (global as any).__pkce_challenges[authCode] = { code_challenge, code_challenge_method };
+  }
+  
+  // Redirect back with code
+  const redirectUrl = new URL(redirect_uri as string);
+  redirectUrl.searchParams.set('code', authCode);
+  if (state) {
+    redirectUrl.searchParams.set('state', state as string);
+  }
+  
+  res.redirect(redirectUrl.toString());
+});
+
+// ============================================
 // MCP OAuth Token Endpoint (for ChatGPT authentication)
 // ============================================
 app.post('/oauth/token', (req: Request, res: Response) => {
-  const { grant_type, client_id, client_secret } = req.body;
+  const { grant_type, client_id, client_secret, code, redirect_uri, code_verifier } = req.body;
 
   // Also check Authorization header for client credentials
   let authClientId = client_id;
@@ -228,28 +308,56 @@ app.post('/oauth/token', (req: Request, res: Response) => {
     authClientSecret = authClientSecret || headerClientSecret;
   }
 
-  // Validate grant type
-  if (grant_type !== 'client_credentials') {
-    return res.status(400).json({
-      error: 'unsupported_grant_type',
-      error_description: 'Only client_credentials grant type is supported',
-    });
+  // Handle authorization_code grant type
+  if (grant_type === 'authorization_code') {
+    if (!code) {
+      return res.status(400).json({
+        error: 'invalid_request',
+        error_description: 'Missing authorization code',
+      });
+    }
+    
+    // Verify the code is valid (we stored it as a token)
+    if (!validateAccessToken(code)) {
+      return res.status(400).json({
+        error: 'invalid_grant',
+        error_description: 'Invalid or expired authorization code',
+      });
+    }
+    
+    // Generate new access token
+    const accessToken = generateAccessToken(authClientId || 'chatgpt');
+    const tokenResponse = getTokenResponse(accessToken);
+    
+    console.log('OAuth token issued via authorization_code for client:', authClientId);
+    res.json(tokenResponse);
+    return;
   }
 
-  // Validate client credentials
-  if (!validateClientCredentials(authClientId, authClientSecret)) {
-    return res.status(401).json({
-      error: 'invalid_client',
-      error_description: 'Invalid client credentials',
-    });
+  // Handle client_credentials grant type
+  if (grant_type === 'client_credentials') {
+    // Validate client credentials
+    if (!validateClientCredentials(authClientId, authClientSecret)) {
+      return res.status(401).json({
+        error: 'invalid_client',
+        error_description: 'Invalid client credentials',
+      });
+    }
+
+    // Generate and return access token
+    const accessToken = generateAccessToken(authClientId);
+    const tokenResponse = getTokenResponse(accessToken);
+    
+    console.log('OAuth token issued via client_credentials for client:', authClientId);
+    res.json(tokenResponse);
+    return;
   }
 
-  // Generate and return access token
-  const accessToken = generateAccessToken(authClientId);
-  const tokenResponse = getTokenResponse(accessToken);
-  
-  console.log('OAuth token issued for client:', authClientId);
-  res.json(tokenResponse);
+  // Unsupported grant type
+  return res.status(400).json({
+    error: 'unsupported_grant_type',
+    error_description: 'Supported grant types: client_credentials, authorization_code',
+  });
 });
 
 // Endpoint to get OAuth credentials info (for setup)
@@ -367,15 +475,16 @@ function startServer(): void {
 ║    Client Secret: ${clientSecret.padEnd(36)}║
 ╠═══════════════════════════════════════════════════════════╣
 ║  Endpoints:                                               ║
+║    GET  /.well-known/oauth-authorization-server           ║
+║    GET  /.well-known/openid-configuration                 ║
+║    GET  /oauth/authorize - OAuth authorization            ║
+║    POST /oauth/token     - OAuth token (ChatGPT)          ║
+║    POST /mcp             - MCP protocol (OAuth protected) ║
 ║    GET  /health          - Health check                   ║
 ║    GET  /auth/status     - Check auth status              ║
-║    GET  /auth/google     - Start OAuth flow               ║
-║    GET  /oauth/callback  - OAuth callback (Google)        ║
-║    POST /oauth/token     - OAuth token (ChatGPT)          ║
+║    GET  /auth/google     - Start Google OAuth             ║
+║    GET  /oauth/callback  - Google OAuth callback          ║
 ║    POST /auth/logout     - Logout                         ║
-║    GET  /api/pending-invites - Get pending invites        ║
-║    POST /api/respond     - Respond to invite              ║
-║    POST /mcp             - MCP protocol (OAuth protected) ║
 ╚═══════════════════════════════════════════════════════════╝
     `);
   });
