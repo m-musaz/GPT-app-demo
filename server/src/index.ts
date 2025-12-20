@@ -445,42 +445,61 @@ app.get('/oauth/credentials', (_req: Request, res: Response) => {
 // MCP Protocol Endpoint (OAuth protected)
 // ============================================
 app.post('/mcp', async (req: Request, res: Response) => {
+  const baseUrl = getBaseUrl(req);
+  
   // Validate OAuth token
   const token = extractBearerToken(req.headers.authorization);
   
   if (!token || !validateAccessToken(token)) {
+    // Return 401 with WWW-Authenticate header per RFC 9728
+    // This tells the client where to get authorization
+    res.setHeader('WWW-Authenticate', `Bearer resource="${baseUrl}/mcp", as_uri="${baseUrl}"`);
     return res.status(401).json({
       jsonrpc: '2.0',
-      error: { code: -32001, message: 'Unauthorized: Invalid or missing access token' },
+      error: { 
+        code: -32001, 
+        message: 'Unauthorized: Invalid or missing access token',
+        data: {
+          authorizationServer: baseUrl,
+          resource: `${baseUrl}/mcp`,
+        }
+      },
       id: req.body.id || null,
     });
   }
 
-  const { method, params } = req.body;
+  const { method, params, id, jsonrpc } = req.body;
   const userId = DEFAULT_USER_ID;
+  
+  // Log full request for debugging
+  console.log('MCP Request:', JSON.stringify({ method, params, id, jsonrpc }));
 
   if (!method) {
     return res.status(400).json({
       jsonrpc: '2.0',
       error: { code: -32600, message: 'Invalid request: missing method' },
-      id: req.body.id || null,
+      id: id || null,
     });
   }
 
   try {
     const result = await handleMCPRequest(method, params || {}, userId);
-    res.json({
-      jsonrpc: '2.0',
+    const response = {
+      jsonrpc: jsonrpc || '2.0',
       result,
-      id: req.body.id || null,
-    });
+      id: id || null,
+    };
+    console.log('MCP Response:', JSON.stringify(response));
+    res.json(response);
   } catch (err: any) {
     console.error('MCP error:', err);
-    res.json({
-      jsonrpc: '2.0',
+    const errorResponse = {
+      jsonrpc: req.body.jsonrpc || '2.0',
       error: { code: -32603, message: err.message },
       id: req.body.id || null,
-    });
+    };
+    console.log('MCP Error Response:', JSON.stringify(errorResponse));
+    res.json(errorResponse);
   }
 });
 

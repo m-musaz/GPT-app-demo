@@ -307,16 +307,23 @@ export async function handleMCPRequest(
       // Client sends its info, we respond with our info and capabilities
       const clientInfo = params.clientInfo as { name?: string; version?: string } | undefined;
       const clientProtocolVersion = params.protocolVersion as string | undefined;
+      const clientCapabilities = params.capabilities as Record<string, unknown> | undefined;
+      
+      console.log('MCP initialize request:', JSON.stringify(params));
       console.log('MCP initialize from client:', clientInfo, 'protocol:', clientProtocolVersion);
       
-      // Use the client's protocol version if provided, otherwise default
+      // Negotiate protocol version - use client's version or fallback
       const protocolVersion = clientProtocolVersion || '2024-11-05';
       
-      return {
+      const response = {
         protocolVersion,
         serverInfo: SERVER_INFO,
         capabilities: SERVER_CAPABILITIES,
+        instructions: 'This server manages Google Calendar reservations. Use check_auth_status to verify authentication, get_pending_reservations to list pending invites, and respond_to_invite to accept/decline invitations.',
       };
+      
+      console.log('MCP initialize response:', JSON.stringify(response));
+      return response;
     }
     
     case 'initialized': {
