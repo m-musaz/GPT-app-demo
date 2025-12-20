@@ -11,16 +11,93 @@ import {
   respondToInvite,
 } from './calendar-service.js';
 import { isAuthenticated, getAuthUrl } from './google-auth.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Default user ID for single-user mode
 const DEFAULT_USER_ID = 'default';
 
-// Base URL for widget templates (set from environment or default)
+// Base URL for widget templates
 const getWidgetBaseUrl = () => process.env.WIDGET_BASE_URL || process.env.BASE_URL || 'https://web-production-2e7fa.up.railway.app';
+
+// Widget directory path
+const getWidgetDir = () => path.join(__dirname, '..', '..', 'widget', 'dist');
+
+/**
+ * MCP Resource for widgets
+ */
+interface WidgetResource {
+  uri: string;
+  name: string;
+  mimeType: string;
+  _meta?: Record<string, unknown>;
+}
+
+/**
+ * Get widget resources (HTML templates served as MCP resources)
+ */
+function getWidgetResources(): WidgetResource[] {
+  const baseUrl = getWidgetBaseUrl();
+  
+  return [
+    {
+      uri: 'ui://widget/pending-invites.html',
+      name: 'Pending Invites Widget',
+      mimeType: 'text/html+skybridge',
+      _meta: {
+        'openai/widgetCSP': {
+          connect_domains: [baseUrl, 'https://accounts.google.com'],
+          resource_domains: [baseUrl],
+        },
+      },
+    },
+    {
+      uri: 'ui://widget/auth-status.html',
+      name: 'Auth Status Widget',
+      mimeType: 'text/html+skybridge',
+      _meta: {
+        'openai/widgetCSP': {
+          connect_domains: [baseUrl, 'https://accounts.google.com'],
+          resource_domains: [baseUrl],
+          redirect_domains: ['https://accounts.google.com'],
+        },
+      },
+    },
+    {
+      uri: 'ui://widget/respond-result.html',
+      name: 'Respond Result Widget',
+      mimeType: 'text/html+skybridge',
+      _meta: {
+        'openai/widgetCSP': {
+          connect_domains: [baseUrl],
+          resource_domains: [baseUrl],
+        },
+      },
+    },
+  ];
+}
+
+/**
+ * Read widget HTML content
+ */
+function readWidgetContent(widgetName: string): string {
+  const widgetDir = getWidgetDir();
+  const widgetPath = path.join(widgetDir, `${widgetName}.html`);
+  
+  if (fs.existsSync(widgetPath)) {
+    return fs.readFileSync(widgetPath, 'utf-8');
+  }
+  
+  return `<html><body><h1>Widget not found: ${widgetName}</h1></body></html>`;
+}
 
 /**
  * OpenAI Apps SDK Tool Definition
- * Uses _meta for widget configuration per 2025 Apps SDK spec
+ * Uses _meta.openai/outputTemplate with ui:// protocol
  */
 interface AppsTool {
   name: string;
@@ -41,10 +118,9 @@ interface AppsTool {
 
 /**
  * Define tools with OpenAI Apps SDK _meta format
+ * Uses ui:// protocol to reference widget resources
  */
 function getTools(): AppsTool[] {
-  const baseUrl = getWidgetBaseUrl();
-  
   return [
     {
       name: 'get_pending_reservations',
@@ -66,7 +142,7 @@ function getTools(): AppsTool[] {
         additionalProperties: false,
       },
       _meta: {
-        'openai/outputTemplate': `${baseUrl}/widgets/pending-invites.html`,
+        'openai/outputTemplate': 'ui://widget/pending-invites.html',
         'openai/visibility': 'public',
         'openai/widgetAccessible': true,
       },
@@ -92,7 +168,7 @@ function getTools(): AppsTool[] {
         additionalProperties: false,
       },
       _meta: {
-        'openai/outputTemplate': `${baseUrl}/widgets/respond-result.html`,
+        'openai/outputTemplate': 'ui://widget/respond-result.html',
         'openai/visibility': 'public',
         'openai/widgetAccessible': false,
       },
@@ -108,7 +184,7 @@ function getTools(): AppsTool[] {
         additionalProperties: false,
       },
       _meta: {
-        'openai/outputTemplate': `${baseUrl}/widgets/auth-status.html`,
+        'openai/outputTemplate': 'ui://widget/auth-status.html',
         'openai/visibility': 'public',
         'openai/widgetAccessible': false,
       },
@@ -240,7 +316,7 @@ function handleCheckAuthStatus(userId: string): AppsToolResponse {
       content: [{ type: 'text', text: 'User is connected to Google Calendar.' }],
       structuredContent: {
         authenticated: true,
-        email: null, // Could fetch from stored tokens
+        email: null,
       },
       isError: false,
     };
@@ -272,6 +348,10 @@ const SERVER_CAPABILITIES = {
   tools: {
     listChanged: false,
   },
+  resources: {
+    subscribe: false,
+    listChanged: false,
+  },
   experimental: {
     'openai/visibility': {
       enabled: true,
@@ -291,6 +371,7 @@ export function createMCPServer(): Server {
     {
       capabilities: {
         tools: {},
+        resources: {},
       },
     }
   );
@@ -345,7 +426,7 @@ export async function startMCPServerStdio(): Promise<void> {
 
 /**
  * Handle MCP request via HTTP (for web integration)
- * Implements the 2025 Apps SDK MCP protocol
+ * Implements the 2025 Apps SDK MCP protocol with resources
  */
 export async function handleMCPRequest(
   method: string,
@@ -432,14 +513,35 @@ export async function handleMCPRequest(
     }
 
     // ============================================
-    // Resource Methods (not implemented)
+    // Resource Methods (Widget Templates)
     // ============================================
     
     case 'resources/list':
-      return { resources: [] };
+      return { resources: getWidgetResources() };
     
-    case 'resources/read':
+    case 'resources/read': {
+      const uri = params.uri as string;
+      console.log('Reading resource:', uri);
+      
+      // Parse the widget name from ui://widget/name.html
+      const match = uri.match(/^ui:\/\/widget\/(.+\.html)$/);
+      if (match) {
+        const widgetName = match[1].replace('.html', '');
+        const content = readWidgetContent(widgetName);
+        
+        return {
+          contents: [
+            {
+              uri,
+              mimeType: 'text/html+skybridge',
+              text: content,
+            },
+          ],
+        };
+      }
+      
       return { contents: [] };
+    }
     
     case 'resources/templates/list':
       return { resourceTemplates: [] };
