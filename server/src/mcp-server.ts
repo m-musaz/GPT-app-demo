@@ -29,8 +29,9 @@ function createToolResult(text: string, isError = false): CallToolResult {
 
 /**
  * Define the available MCP tools
+ * Each tool includes annotations for visibility and behavior hints
  */
-const TOOLS: Tool[] = [
+const TOOLS: (Tool & { annotations?: Record<string, unknown> })[] = [
   {
     name: 'get_pending_reservations',
     description:
@@ -50,6 +51,11 @@ const TOOLS: Tool[] = [
         },
       },
       required: [],
+    },
+    annotations: {
+      audience: ['user'],
+      readOnlyHint: true,
+      openWorldHint: false,
     },
   },
   {
@@ -72,6 +78,13 @@ const TOOLS: Tool[] = [
       },
       required: ['event_id', 'response'],
     },
+    annotations: {
+      audience: ['user'],
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
   },
   {
     name: 'check_auth_status',
@@ -81,6 +94,11 @@ const TOOLS: Tool[] = [
       type: 'object',
       properties: {},
       required: [],
+    },
+    annotations: {
+      audience: ['user'],
+      readOnlyHint: true,
+      openWorldHint: false,
     },
   },
 ];
@@ -236,15 +254,74 @@ export async function startMCPServerStdio(): Promise<void> {
 }
 
 /**
+ * MCP Server Information
+ */
+const SERVER_INFO = {
+  name: 'reservations-manager',
+  version: '1.0.0',
+};
+
+/**
+ * MCP Server Capabilities
+ */
+const SERVER_CAPABILITIES = {
+  tools: {
+    listChanged: false,
+  },
+};
+
+/**
  * Handle MCP request via HTTP (for web integration)
  * This is a simplified handler for Express integration
+ * Implements the MCP protocol methods required by ChatGPT
  */
 export async function handleMCPRequest(
   method: string,
   params: Record<string, unknown>,
   userId: string = DEFAULT_USER_ID
 ): Promise<unknown> {
+  console.log(`MCP method called: ${method}`, JSON.stringify(params));
+  
   switch (method) {
+    // ============================================
+    // Lifecycle Methods
+    // ============================================
+    
+    case 'initialize': {
+      // MCP initialization handshake
+      // Client sends its info, we respond with our info and capabilities
+      const clientInfo = params.clientInfo as { name?: string; version?: string } | undefined;
+      console.log('MCP initialize from client:', clientInfo);
+      
+      return {
+        protocolVersion: '2024-11-05',
+        serverInfo: SERVER_INFO,
+        capabilities: SERVER_CAPABILITIES,
+      };
+    }
+    
+    case 'initialized': {
+      // Client acknowledges initialization is complete
+      // This is a notification, no response needed
+      console.log('MCP client initialized');
+      return {};
+    }
+    
+    case 'ping': {
+      // Health check
+      return { status: 'ok' };
+    }
+    
+    case 'shutdown': {
+      // Client is shutting down
+      console.log('MCP client shutdown');
+      return {};
+    }
+
+    // ============================================
+    // Tool Methods
+    // ============================================
+    
     case 'tools/list':
       return { tools: TOOLS };
 
@@ -275,7 +352,45 @@ export async function handleMCPRequest(
       }
     }
 
+    // ============================================
+    // Resource Methods (not implemented but handled)
+    // ============================================
+    
+    case 'resources/list':
+      return { resources: [] };
+    
+    case 'resources/read':
+      return { contents: [] };
+    
+    case 'resources/templates/list':
+      return { resourceTemplates: [] };
+
+    // ============================================
+    // Prompt Methods (not implemented but handled)
+    // ============================================
+    
+    case 'prompts/list':
+      return { prompts: [] };
+    
+    case 'prompts/get':
+      throw new Error('Prompt not found');
+
+    // ============================================
+    // Completion Methods
+    // ============================================
+    
+    case 'completion/complete':
+      return { completion: { values: [] } };
+
+    // ============================================
+    // Logging Methods
+    // ============================================
+    
+    case 'logging/setLevel':
+      return {};
+
     default:
+      console.warn(`Unknown MCP method: ${method}`);
       throw new Error(`Unknown MCP method: ${method}`);
   }
 }
