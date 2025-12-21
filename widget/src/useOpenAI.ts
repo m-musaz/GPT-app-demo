@@ -1,22 +1,24 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 // OpenAI Apps SDK Widget interface (2025)
 // Reference: https://developers.openai.com/apps-sdk/build/mcp-server/
 export interface OpenAIWidget {
   // Data from tool response
-  toolOutput?: Record<string, unknown>;
-  toolInput?: Record<string, unknown>;
-  toolResponseMetadata?: Record<string, unknown>;
-  widgetState?: Record<string, unknown>;
+  toolOutput?: Record<string, unknown> | null;
+  toolInput?: Record<string, unknown> | null;
+  toolResponseMetadata?: Record<string, unknown> | null;
+  widgetState?: Record<string, unknown> | null;
   
   // Context signals
   theme?: 'light' | 'dark';
   displayMode?: string;
   maxHeight?: number;
+  maxWidth?: number;
   safeArea?: { top: number; bottom: number; left: number; right: number };
   view?: string;
   userAgent?: string;
   locale?: string;
+  subjectId?: string;
   
   // APIs
   callTool?: (name: string, args: Record<string, unknown>) => Promise<unknown>;
@@ -24,6 +26,7 @@ export interface OpenAIWidget {
   sendFollowUpMessage?: (message: string) => void;
   notifyIntrinsicHeight?: (height: number) => void;
   setWidgetState?: (state: Record<string, unknown> | ((prev: Record<string, unknown>) => Record<string, unknown>)) => void;
+  updateWidgetState?: (state: Record<string, unknown>) => void;
   requestDisplayMode?: (mode: string) => void;
   requestModal?: (options: unknown) => void;
   uploadFile?: (file: File) => Promise<unknown>;
@@ -43,48 +46,67 @@ export function useOpenAI<T = unknown>() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Update state from window.openai
+  const updateFromGlobals = useCallback(() => {
+    if (window.openai) {
+      console.log('[Widget] Updating from globals');
+      console.log('[Widget] toolOutput:', window.openai.toolOutput);
+      console.log('[Widget] theme:', window.openai.theme);
+      
+      setOpenai(window.openai);
+      setData((window.openai.toolOutput as T) ?? null);
+      setTheme(window.openai.theme || 'light');
+      setIsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
+    // Listen for the openai:set_globals event
+    // ChatGPT dispatches this event when tool output is ready
+    const handleSetGlobals = (event: Event) => {
+      console.log('[Widget] Received openai:set_globals event', event);
+      updateFromGlobals();
+    };
+
+    // Add event listener for when ChatGPT updates the globals
+    window.addEventListener('openai:set_globals', handleSetGlobals);
+
+    // Also check immediately in case data is already available
     let attempts = 0;
-    const maxAttempts = 50; // 5 seconds max
+    const maxAttempts = 30; // 3 seconds max
 
     const checkOpenAI = () => {
       attempts++;
       
       try {
         if (window.openai) {
-          // Debug: log everything we received
-          console.log('[Widget] window.openai found:', Object.keys(window.openai));
+          console.log('[Widget] window.openai found (attempt', attempts, ')');
+          console.log('[Widget] Keys:', Object.keys(window.openai));
           console.log('[Widget] toolOutput:', window.openai.toolOutput);
           console.log('[Widget] toolInput:', window.openai.toolInput);
-          console.log('[Widget] toolResponseMetadata:', window.openai.toolResponseMetadata);
-          console.log('[Widget] widgetState:', window.openai.widgetState);
-          console.log('[Widget] widget:', (window.openai as any).widget);
-          console.log('[Widget] theme:', window.openai.theme);
-          console.log('[Widget] view:', window.openai.view);
           
-          // Check if toolOutput is null but might be populated later
-          if (window.openai.toolOutput === null && attempts < 10) {
-            console.log('[Widget] toolOutput is null, retrying...', attempts);
+          // If toolOutput is available, use it
+          if (window.openai.toolOutput !== null && window.openai.toolOutput !== undefined) {
+            console.log('[Widget] toolOutput available, using it');
+            updateFromGlobals();
+            return;
+          }
+          
+          // If toolOutput is null, wait for openai:set_globals event
+          // But also retry a few times in case it's populated asynchronously
+          if (attempts < 15) {
+            console.log('[Widget] toolOutput is null, waiting...');
             setTimeout(checkOpenAI, 200);
             return;
           }
           
-          setOpenai(window.openai);
-          
-          // Widget reads data from toolOutput (server sends as structuredContent)
-          // Reference: https://developers.openai.com/apps-sdk/build/mcp-server/
-          const toolData = window.openai.toolOutput ?? null;
-          
-          console.log('[Widget] Final data:', toolData);
-          
-          setData(toolData as T);
-          setTheme(window.openai.theme || 'light');
-          setIsLoading(false);
+          // After waiting, use whatever we have
+          console.log('[Widget] Using current state after waiting');
+          updateFromGlobals();
         } else if (attempts < maxAttempts) {
           setTimeout(checkOpenAI, 100);
         } else {
-          // Timeout - OpenAI not available
-          console.log('[Widget] Timeout - window.openai not available after', attempts, 'attempts');
+          console.log('[Widget] Timeout - window.openai not available');
           setError('OpenAI widget context not available');
           setIsLoading(false);
         }
@@ -96,7 +118,12 @@ export function useOpenAI<T = unknown>() {
     };
 
     checkOpenAI();
-  }, []);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('openai:set_globals', handleSetGlobals);
+    };
+  }, [updateFromGlobals]);
 
   const callTool = async (name: string, args: Record<string, unknown>) => {
     if (!openai?.callTool) throw new Error('OpenAI not initialized');
@@ -126,6 +153,8 @@ export function useOpenAI<T = unknown>() {
   const setWidgetState = (state: Record<string, unknown> | ((prev: Record<string, unknown>) => Record<string, unknown>)) => {
     if (openai?.setWidgetState) {
       openai.setWidgetState(state);
+    } else if (openai?.updateWidgetState && typeof state === 'object') {
+      openai.updateWidgetState(state as Record<string, unknown>);
     }
   };
 
