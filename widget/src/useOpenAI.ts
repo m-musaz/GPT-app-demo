@@ -52,10 +52,22 @@ export function useOpenAI<T = unknown>() {
       
       try {
         if (window.openai) {
-          // Debug: log what we received
+          // Debug: log everything we received
           console.log('[Widget] window.openai found:', Object.keys(window.openai));
           console.log('[Widget] toolOutput:', window.openai.toolOutput);
+          console.log('[Widget] toolInput:', window.openai.toolInput);
+          console.log('[Widget] toolResponseMetadata:', window.openai.toolResponseMetadata);
+          console.log('[Widget] widgetState:', window.openai.widgetState);
+          console.log('[Widget] widget:', (window.openai as any).widget);
           console.log('[Widget] theme:', window.openai.theme);
+          console.log('[Widget] view:', window.openai.view);
+          
+          // Check if toolOutput is null but might be populated later
+          if (window.openai.toolOutput === null && attempts < 10) {
+            console.log('[Widget] toolOutput is null, retrying...', attempts);
+            setTimeout(checkOpenAI, 200);
+            return;
+          }
           
           setOpenai(window.openai);
           
@@ -63,7 +75,7 @@ export function useOpenAI<T = unknown>() {
           // Reference: https://developers.openai.com/apps-sdk/build/mcp-server/
           const toolData = window.openai.toolOutput ?? null;
           
-          console.log('[Widget] Using data:', toolData);
+          console.log('[Widget] Final data:', toolData);
           
           setData(toolData as T);
           setTheme(window.openai.theme || 'light');
