@@ -75,7 +75,7 @@ function Loading() {
 }
 
 export default function AuthStatus() {
-  const { data, theme, isLoading, openExternal, sendFollowUp, notifyHeight } = useOpenAI<AuthStatusOutput>();
+  const { data, theme, isLoading, error, openExternal, sendFollowUp, notifyHeight } = useOpenAI<AuthStatusOutput>();
 
   useEffect(() => {
     if (!isLoading) {
@@ -88,6 +88,17 @@ export default function AuthStatus() {
       <div className={theme === 'dark' ? 'dark' : ''}>
         <div className="min-h-[300px] bg-surface-primary">
           <Loading />
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className={theme === 'dark' ? 'dark' : ''}>
+        <div className="min-h-[300px] bg-surface-primary flex flex-col items-center justify-center p-6">
+          <div className="text-4xl mb-4">⚠️</div>
+          <p className="text-text-secondary text-center">Error: {error}</p>
         </div>
       </div>
     );
