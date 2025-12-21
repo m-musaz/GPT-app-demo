@@ -52,11 +52,18 @@ export function useOpenAI<T = unknown>() {
       
       try {
         if (window.openai) {
+          // Debug: log what we received
+          console.log('[Widget] window.openai found:', Object.keys(window.openai));
+          console.log('[Widget] toolOutput:', window.openai.toolOutput);
+          console.log('[Widget] theme:', window.openai.theme);
+          
           setOpenai(window.openai);
           
           // Widget reads data from toolOutput (server sends as structuredContent)
           // Reference: https://developers.openai.com/apps-sdk/build/mcp-server/
           const toolData = window.openai.toolOutput ?? null;
+          
+          console.log('[Widget] Using data:', toolData);
           
           setData(toolData as T);
           setTheme(window.openai.theme || 'light');
@@ -65,10 +72,12 @@ export function useOpenAI<T = unknown>() {
           setTimeout(checkOpenAI, 100);
         } else {
           // Timeout - OpenAI not available
+          console.log('[Widget] Timeout - window.openai not available after', attempts, 'attempts');
           setError('OpenAI widget context not available');
           setIsLoading(false);
         }
       } catch (e) {
+        console.error('[Widget] Error:', e);
         setError(e instanceof Error ? e.message : 'Unknown error');
         setIsLoading(false);
       }
