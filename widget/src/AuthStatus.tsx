@@ -7,25 +7,26 @@ import { Calendar, Check } from '@openai/apps-sdk-ui/components/Icon';
 import './main.css';
 
 function Connected({ email, sendFollowUp, isDark }: { email?: string | null; sendFollowUp: (msg: string) => void; isDark: boolean }) {
+  // If dark mode, show white widget. If light mode, show dark widget.
   return (
-    <div className={`p-6 rounded-xl border ${isDark ? 'bg-zinc-900 border-zinc-700' : 'bg-white border-gray-200'} shadow-sm`}>
+    <div className={`p-6 rounded-xl border shadow-sm ${isDark ? 'bg-white border-gray-200' : 'bg-zinc-900 border-zinc-700'}`}>
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className={`size-12 rounded-xl flex items-center justify-center ${isDark ? 'bg-green-900/30' : 'bg-green-50'}`}>
+          <div className={`size-12 rounded-xl flex items-center justify-center ${isDark ? 'bg-green-50' : 'bg-green-900/30'}`}>
             <Check className="size-6 text-green-500" />
           </div>
           <div>
-            <h2 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>Connected</h2>
-            <p className={`text-sm ${isDark ? 'text-zinc-400' : 'text-gray-500'}`}>Google Calendar linked</p>
+            <h2 className={`text-lg font-semibold ${isDark ? 'text-gray-900' : 'text-white'}`}>Connected</h2>
+            <p className={`text-sm ${isDark ? 'text-gray-500' : 'text-zinc-400'}`}>Google Calendar linked</p>
           </div>
         </div>
         <Badge color="success">Active</Badge>
       </div>
 
       {email && (
-        <div className={`mb-6 p-4 rounded-xl border ${isDark ? 'bg-zinc-800 border-zinc-700' : 'bg-gray-50 border-gray-200'}`}>
-          <p className={`text-xs uppercase tracking-wide font-medium mb-1 ${isDark ? 'text-zinc-500' : 'text-gray-400'}`}>Signed in as</p>
-          <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{email}</p>
+        <div className={`mb-6 p-4 rounded-xl border ${isDark ? 'bg-gray-50 border-gray-200' : 'bg-zinc-800 border-zinc-700'}`}>
+          <p className={`text-xs uppercase tracking-wide font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-zinc-500'}`}>Signed in as</p>
+          <p className={`text-sm font-medium ${isDark ? 'text-gray-900' : 'text-white'}`}>{email}</p>
         </div>
       )}
 
@@ -47,18 +48,19 @@ function NotConnected({ authUrl, openExternal, isDark }: { authUrl: string; open
     }
   };
 
+  // If dark mode, show white widget. If light mode, show dark widget.
   return (
-    <div className={`p-6 rounded-xl border ${isDark ? 'bg-zinc-900 border-zinc-700' : 'bg-white border-gray-200'} shadow-sm`}>
+    <div className={`p-6 rounded-xl border shadow-sm ${isDark ? 'bg-white border-gray-200' : 'bg-zinc-900 border-zinc-700'}`}>
       <div className="flex flex-col items-center text-center">
-        <div className={`size-14 rounded-xl flex items-center justify-center mb-4 ${isDark ? 'bg-zinc-800' : 'bg-gray-100'}`}>
+        <div className={`size-14 rounded-xl flex items-center justify-center mb-4 ${isDark ? 'bg-gray-100' : 'bg-zinc-800'}`}>
           <Calendar className="size-7 text-primary" />
         </div>
         
-        <h2 className={`text-lg font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+        <h2 className={`text-lg font-semibold mb-2 ${isDark ? 'text-gray-900' : 'text-white'}`}>
           Connect Google Calendar
         </h2>
         
-        <p className={`text-sm mb-6 max-w-[280px] ${isDark ? 'text-zinc-400' : 'text-gray-500'}`}>
+        <p className={`text-sm mb-6 max-w-[280px] ${isDark ? 'text-gray-500' : 'text-zinc-400'}`}>
           Link your Google account to manage calendar invitations directly from ChatGPT
         </p>
 
@@ -74,12 +76,12 @@ function NotConnected({ authUrl, openExternal, isDark }: { authUrl: string; open
           </Button>
         ) : (
           <div className="flex items-center justify-center gap-2 py-3">
-            <div className="size-4 rounded-full border-2 border-gray-300 border-t-primary animate-spin" />
-            <p className={`text-sm ${isDark ? 'text-zinc-400' : 'text-gray-500'}`}>Loading...</p>
+            <div className={`size-4 rounded-full border-2 border-t-primary animate-spin ${isDark ? 'border-gray-300' : 'border-zinc-600'}`} />
+            <p className={`text-sm ${isDark ? 'text-gray-500' : 'text-zinc-400'}`}>Loading...</p>
           </div>
         )}
 
-        <p className={`text-xs mt-4 ${isDark ? 'text-zinc-500' : 'text-gray-400'}`}>
+        <p className={`text-xs mt-4 ${isDark ? 'text-gray-400' : 'text-zinc-500'}`}>
           We only access your calendar events.
         </p>
       </div>
@@ -87,11 +89,11 @@ function NotConnected({ authUrl, openExternal, isDark }: { authUrl: string; open
   );
 }
 
-function Loading() {
+function Loading({ isDark }: { isDark: boolean }) {
   return (
     <div className="flex items-center justify-center gap-3 py-8">
-      <div className="size-5 rounded-full border-2 border-gray-300 border-t-primary animate-spin" />
-      <p className="text-secondary text-sm">Checking connection...</p>
+      <div className={`size-5 rounded-full border-2 border-t-primary animate-spin ${isDark ? 'border-gray-300' : 'border-zinc-600'}`} />
+      <p className={`text-sm ${isDark ? 'text-gray-500' : 'text-zinc-400'}`}>Checking connection...</p>
     </div>
   );
 }
@@ -104,26 +106,27 @@ export default function AuthStatus() {
     if (!isLoading) notifyHeight();
   }, [isLoading, data]);
 
+  // If dark mode, show white widget. If light mode, show dark widget.
   if (isLoading) {
     return (
-      <div className={`p-4 rounded-xl border ${isDark ? 'bg-zinc-900 border-zinc-700' : 'bg-white border-gray-200'} shadow-sm`}>
-        <Loading />
+      <div className={`p-4 rounded-xl border shadow-sm ${isDark ? 'bg-white border-gray-200' : 'bg-zinc-900 border-zinc-700'}`}>
+        <Loading isDark={isDark} />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className={`p-6 rounded-xl border text-center ${isDark ? 'bg-zinc-900 border-zinc-700' : 'bg-white border-gray-200'} shadow-sm`}>
-        <p className={isDark ? 'text-zinc-400' : 'text-gray-500'}>{error}</p>
+      <div className={`p-6 rounded-xl border text-center shadow-sm ${isDark ? 'bg-white border-gray-200' : 'bg-zinc-900 border-zinc-700'}`}>
+        <p className={isDark ? 'text-gray-500' : 'text-zinc-400'}>{error}</p>
       </div>
     );
   }
 
   if (!data) {
     return (
-      <div className={`p-6 rounded-xl border text-center ${isDark ? 'bg-zinc-900 border-zinc-700' : 'bg-white border-gray-200'} shadow-sm`}>
-        <p className={isDark ? 'text-zinc-400' : 'text-gray-500'}>No data</p>
+      <div className={`p-6 rounded-xl border text-center shadow-sm ${isDark ? 'bg-white border-gray-200' : 'bg-zinc-900 border-zinc-700'}`}>
+        <p className={isDark ? 'text-gray-500' : 'text-zinc-400'}>No data</p>
       </div>
     );
   }
