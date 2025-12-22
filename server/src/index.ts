@@ -147,8 +147,10 @@ app.get('/auth/google', (_req: Request, res: Response) => {
 
 // OAuth callback handler
 app.get('/oauth/callback', async (req: Request, res: Response) => {
-  const { code, error } = req.query;
-  const userId = DEFAULT_USER_ID;
+  const { code, error, state } = req.query;
+  
+  const userId = (state && typeof state === 'string') ? state : DEFAULT_USER_ID;
+  console.log(`OAuth callback for user: ${userId}`);
 
   const renderPage = (success: boolean, message: string, email?: string) => {
     const bgColor = success ? '#10a37f' : '#ef4444';

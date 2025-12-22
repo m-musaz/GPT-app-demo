@@ -126,9 +126,6 @@ export function InvitesView() {
           <h2 className={`text-xl font-semibold mb-2 ${theme.textPrimary(isDark)}`}>All Caught Up!</h2>
           <p className={`text-sm mb-6 ${theme.textPrimary(isDark)}`}>No pending invitations.</p>
           <div className="flex gap-2 justify-center">
-            <Button className={`${theme.textSecondary(isDark)} bg-white text-black p-5 rounded-xl ${theme.buttonBorder(isDark)} ${theme.buttonShadow()}`} variant="outline" color="secondary" size="sm" onClick={handleBack}>
-              ← Back
-            </Button>
             <Button className={`${theme.textSecondary(isDark)} bg-white p-5 rounded-xl ${theme.buttonBorder(isDark)} ${theme.buttonShadow()}`} variant="outline" color="primary" size="sm" onClick={handleRefresh} disabled={isRefreshing}>
               {isRefreshing ? '↻ Refreshing...' : '↻ Refresh'}
             </Button>

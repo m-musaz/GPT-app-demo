@@ -418,6 +418,21 @@ export async function startMCPServerStdio(): Promise<void> {
   console.error('MCP Server running on stdio');
 }
 
+
+function extractUserId(params: Record<string, unknown>): string {
+  const meta = params._meta as Record<string, unknown> | undefined;
+  const subject = meta?.['openai/subject'] as string | undefined;
+  
+  if (subject && typeof subject === 'string') {
+    console.log(`Extracted user ID from request: ${subject}`);
+    return subject;
+  }
+  
+  // Fallback to default for backward compatibility
+  console.warn('No user ID found in request, using default');
+  return DEFAULT_USER_ID;
+}
+
 /**
  * Handle MCP request via HTTP (for web integration)
  * Implements the 2025 Apps SDK MCP protocol with resources
@@ -425,9 +440,11 @@ export async function startMCPServerStdio(): Promise<void> {
 export async function handleMCPRequest(
   method: string,
   params: Record<string, unknown>,
-  userId: string = DEFAULT_USER_ID
+  fallbackUserId: string = DEFAULT_USER_ID
 ): Promise<unknown> {
   console.log(`MCP method called: ${method}`, JSON.stringify(params));
+  
+  const userId = extractUserId(params);
   
   switch (method) {
     // ============================================
@@ -481,26 +498,31 @@ export async function handleMCPRequest(
       return { tools: getTools() };
 
     case 'tools/call': {
-      const { name, arguments: args } = params as {
+      const { name, arguments: args, _meta } = params as {
         name: string;
         arguments: Record<string, unknown>;
+        _meta?: Record<string, unknown>;
       };
+      
+      // Extract userId from tool call metadata
+      const toolUserId = _meta?.['openai/subject'] as string | undefined || userId;
+      console.log(`Tool call: ${name} for user: ${toolUserId}`);
 
       switch (name) {
         case 'get_pending_reservations':
           return await handleGetPendingReservations(
             args as { start_date?: string; end_date?: string },
-            userId
+            toolUserId
           );
 
         case 'respond_to_invite':
           return await handleRespondToInvite(
             args as { event_id: string; response: 'accepted' | 'declined' | 'tentative' },
-            userId
+            toolUserId
           );
 
         case 'check_auth_status':
-          return handleCheckAuthStatus(userId);
+          return handleCheckAuthStatus(toolUserId);
 
         default:
           return {
