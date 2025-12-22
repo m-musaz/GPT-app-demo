@@ -460,12 +460,61 @@ function ResultView() {
 // ============================================
 // Main Widget with Router
 // ============================================
-function WidgetRouter({ initialAuthData }: { initialAuthData: AuthStatusOutput | null }) {
+function WidgetRouter({ initialData }: { initialData: unknown }) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { setAuthData, setInvitesData, setRespondData, authData, invitesData } = useWidget();
+  const [initialRouteSet, setInitialRouteSet] = useState(false);
   
   useEffect(() => {
     console.log('[Widget] Route changed to:', location.pathname);
   }, [location.pathname]);
+
+  // Auto-detect data type and route accordingly on initial load
+  useEffect(() => {
+    if (initialRouteSet || !initialData) return;
+    
+    const data = initialData as Record<string, unknown>;
+    console.log('[Widget] Auto-detecting data type:', Object.keys(data));
+    
+    // Check if it's invites data (has 'invites' array)
+    if ('invites' in data && Array.isArray(data.invites)) {
+      console.log('[Widget] Detected invites data, navigating to /invites');
+      setInvitesData(data as unknown as PendingInvitesOutput);
+      // Also mark as authenticated since we could fetch invites
+      setAuthData({ authenticated: true });
+      navigate('/invites', { replace: true });
+      setInitialRouteSet(true);
+      return;
+    }
+    
+    // Check if it's respond result data (has 'success' and 'response')
+    if ('success' in data && 'response' in data) {
+      console.log('[Widget] Detected respond result data, navigating to /result');
+      setRespondData(data as unknown as RespondResultOutput);
+      navigate('/result', { replace: true });
+      setInitialRouteSet(true);
+      return;
+    }
+    
+    // Check if it's auth data (has 'authenticated')
+    if ('authenticated' in data) {
+      console.log('[Widget] Detected auth data, staying on /');
+      setAuthData(data as unknown as AuthStatusOutput);
+      setInitialRouteSet(true);
+      return;
+    }
+    
+    // Unknown data type, stay on current route
+    console.log('[Widget] Unknown data type, staying on current route');
+    setInitialRouteSet(true);
+  }, [initialData, initialRouteSet, navigate, setAuthData, setInvitesData, setRespondData]);
+
+  // Derive initial auth data for AuthView
+  const initialAuthData: AuthStatusOutput | null = 
+    (initialData && 'authenticated' in (initialData as Record<string, unknown>))
+      ? initialData as AuthStatusOutput
+      : authData;
 
   return (
     <Routes>
@@ -537,7 +586,7 @@ export default function CalendarWidget() {
   return (
     <WidgetContext.Provider value={contextValue}>
       <BrowserRouter>
-        <WidgetRouter initialAuthData={data} />
+        <WidgetRouter initialData={data} />
       </BrowserRouter>
     </WidgetContext.Provider>
   );
