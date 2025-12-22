@@ -1,10 +1,14 @@
-import { useEffect } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useOpenAI } from './useOpenAI';
 import type { AuthStatusOutput } from './types';
 import { Button } from '@openai/apps-sdk-ui/components/Button';
 import { Badge } from '@openai/apps-sdk-ui/components/Badge';
 import { Calendar, Check } from '@openai/apps-sdk-ui/components/Icon';
 import './main.css';
+
+// Polling constants
+const POLL_INTERVAL_MS = 3000; // 3 seconds
+const MAX_POLL_DURATION_MS = 5 * 60 * 1000; // 5 minutes (OAuth link expiry)
 
 function Connected({ email, sendFollowUp, isDark }: { email?: string | null; sendFollowUp: (msg: string) => void; isDark: boolean }) {
   // If dark mode, show white widget. If light mode, show dark widget.
@@ -38,12 +42,22 @@ function Connected({ email, sendFollowUp, isDark }: { email?: string | null; sen
   );
 }
 
-function NotConnected({ authUrl, openExternal, isDark }: { authUrl: string; openExternal: (options: { href: string }) => void; isDark: boolean }) {
+interface NotConnectedProps {
+  authUrl: string;
+  openExternal: (options: { href: string }) => void;
+  isDark: boolean;
+  onStartPolling: () => void;
+  isPolling: boolean;
+}
+
+function NotConnected({ authUrl, openExternal, isDark, onStartPolling, isPolling }: NotConnectedProps) {
   const handleConnect = () => {
     console.log('[Widget] Connect clicked, authUrl:', authUrl);
     if (authUrl && authUrl.length > 0) {
-      // ChatGPT's openExternal expects { href: url } object
+      // Open Google auth in new tab
       openExternal({ href: authUrl });
+      // Start polling for auth status
+      onStartPolling();
     } else {
       console.error('[Widget] No auth URL available');
     }
@@ -58,14 +72,24 @@ function NotConnected({ authUrl, openExternal, isDark }: { authUrl: string; open
         </div>
         
         <h2 className={`text-lg font-semibold mb-2 ${isDark ? 'text-black' : 'text-white'}`}>
-          Connect Google Calendar
+          {isPolling ? 'Waiting for Sign In...' : 'Connect Google Calendar'}
         </h2>
         
         <p className={`text-sm mb-6 max-w-[280px] ${isDark ? 'text-black' : 'text-zinc-400'}`}>
-          Link your Google account to manage calendar invitations directly from ChatGPT
+          {isPolling 
+            ? 'Complete the sign-in in the new tab. This will update automatically.'
+            : 'Link your Google account to manage calendar invitations directly from ChatGPT'
+          }
         </p>
 
-        {authUrl && authUrl.length > 0 ? (
+        {isPolling ? (
+          <div className="flex flex-col items-center gap-3 py-2">
+            <div className={`size-6 rounded-full border-2 border-t-primary animate-spin ${isDark ? 'border-gray-300' : 'border-zinc-600'}`} />
+            <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-zinc-500'}`}>
+              Checking every few seconds...
+            </p>
+          </div>
+        ) : authUrl && authUrl.length > 0 ? (
           <Button variant="outline" className='text-black' color="primary" block onClick={handleConnect}>
             <svg className="size-5" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -100,12 +124,94 @@ function Loading({ isDark }: { isDark: boolean }) {
 }
 
 export default function AuthStatus() {
-  const { data, theme, isLoading, error, openExternal, sendFollowUp, notifyHeight } = useOpenAI<AuthStatusOutput>();
+  const { data, theme, isLoading, error, openExternal, sendFollowUp, notifyHeight, callTool, setWidgetState, openai } = useOpenAI<AuthStatusOutput>();
   const isDark = theme === 'dark';
+  
+  // Local state for polling and auth data (overrides initial data when polling succeeds)
+  const [isPolling, setIsPolling] = useState(false);
+  const [authData, setAuthData] = useState<AuthStatusOutput | null>(null);
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pollStartTimeRef = useRef<number | null>(null);
 
+  // Use authData if available (from polling), otherwise use initial data
+  const currentData = authData || data;
+
+  // Polling function
+  const pollAuthStatus = useCallback(async () => {
+    try {
+      console.log('[Widget] Polling auth status...');
+      
+      // Check if we've exceeded max polling duration
+      if (pollStartTimeRef.current && Date.now() - pollStartTimeRef.current > MAX_POLL_DURATION_MS) {
+        console.log('[Widget] Polling timeout - stopping');
+        setIsPolling(false);
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+        }
+        return;
+      }
+
+      // Call the check_auth_status tool
+      const result = await callTool('check_auth_status', {});
+      console.log('[Widget] Poll result:', result);
+      
+      // The result should contain structuredContent with auth status
+      const response = result as { structuredContent?: AuthStatusOutput };
+      if (response?.structuredContent?.authenticated) {
+        console.log('[Widget] User authenticated! Stopping polling.');
+        setAuthData(response.structuredContent);
+        setIsPolling(false);
+        
+        // Persist state so it survives re-renders
+        setWidgetState({ authenticated: true, email: response.structuredContent.email });
+        
+        // Stop polling
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+        }
+      }
+    } catch (err) {
+      console.error('[Widget] Poll error:', err);
+      // Continue polling on error
+    }
+  }, [callTool, setWidgetState]);
+
+  // Start polling
+  const startPolling = useCallback(() => {
+    if (isPolling) return;
+    
+    console.log('[Widget] Starting auth status polling');
+    setIsPolling(true);
+    pollStartTimeRef.current = Date.now();
+    
+    // Poll immediately, then every POLL_INTERVAL_MS
+    pollAuthStatus();
+    pollIntervalRef.current = setInterval(pollAuthStatus, POLL_INTERVAL_MS);
+  }, [isPolling, pollAuthStatus]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+      }
+    };
+  }, []);
+
+  // Notify height changes
   useEffect(() => {
     if (!isLoading) notifyHeight();
-  }, [isLoading, data]);
+  }, [isLoading, currentData, isPolling, notifyHeight]);
+
+  // Check widgetState on mount to restore polling state or auth status
+  useEffect(() => {
+    const widgetState = openai?.widgetState as { authenticated?: boolean; email?: string } | null;
+    if (widgetState?.authenticated) {
+      setAuthData({ authenticated: true, email: widgetState.email || undefined, authUrl: undefined });
+    }
+  }, [openai?.widgetState]);
 
   // If dark mode, show white widget. If light mode, show dark widget.
   if (isLoading) {
@@ -124,7 +230,7 @@ export default function AuthStatus() {
     );
   }
 
-  if (!data) {
+  if (!currentData) {
     return (
       <div className={`p-6 rounded-xl border text-center shadow-sm ${isDark ? 'bg-white border-gray-200' : 'bg-zinc-900 border-zinc-700'}`}>
         <p className={isDark ? 'text-black' : 'text-zinc-400'}>No data</p>
@@ -132,7 +238,13 @@ export default function AuthStatus() {
     );
   }
 
-  return data.authenticated 
-    ? <Connected email={data.email} sendFollowUp={sendFollowUp} isDark={isDark} /> 
-    : <NotConnected authUrl={data.authUrl || ''} openExternal={openExternal} isDark={isDark} />;
+  return currentData.authenticated 
+    ? <Connected email={currentData.email} sendFollowUp={sendFollowUp} isDark={isDark} /> 
+    : <NotConnected 
+        authUrl={currentData.authUrl || ''} 
+        openExternal={openExternal} 
+        isDark={isDark}
+        onStartPolling={startPolling}
+        isPolling={isPolling}
+      />;
 }

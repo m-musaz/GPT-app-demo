@@ -186,7 +186,7 @@ function getTools(): AppsTool[] {
       _meta: {
         'openai/outputTemplate': 'ui://widget/auth-status.html',
         'openai/visibility': 'public',
-        'openai/widgetAccessible': false,
+        'openai/widgetAccessible': true, // Allow widget to call this tool for polling auth status
       },
     },
   ];

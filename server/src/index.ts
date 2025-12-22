@@ -150,24 +150,100 @@ app.get('/oauth/callback', async (req: Request, res: Response) => {
   const { code, error } = req.query;
   const userId = DEFAULT_USER_ID;
 
+  const renderPage = (success: boolean, message: string, email?: string) => {
+    const bgColor = success ? '#10a37f' : '#ef4444';
+    const icon = success ? '✓' : '✕';
+    return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${success ? 'Connected!' : 'Error'}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: white;
+    }
+    .container {
+      text-align: center;
+      padding: 3rem;
+      max-width: 400px;
+    }
+    .icon {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: ${bgColor};
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 1.5rem;
+      font-size: 2.5rem;
+    }
+    h1 { font-size: 1.75rem; margin-bottom: 0.5rem; }
+    .email { color: #10a37f; font-weight: 600; margin-bottom: 1rem; }
+    p { color: #9ca3af; line-height: 1.6; margin-bottom: 1.5rem; }
+    .btn {
+      display: inline-block;
+      background: #10a37f;
+      color: white;
+      padding: 0.75rem 2rem;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 500;
+      transition: background 0.2s;
+    }
+    .btn:hover { background: #0d8c6d; }
+    .note { font-size: 0.875rem; color: #6b7280; margin-top: 1rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">${icon}</div>
+    <h1>${success ? 'Google Calendar Connected!' : 'Connection Failed'}</h1>
+    ${email ? `<p class="email">${email}</p>` : ''}
+    <p>${message}</p>
+    <a href="https://chatgpt.com" class="btn">Return to ChatGPT</a>
+    <p class="note">This tab will close automatically...</p>
+  </div>
+  <script>
+    // Try to close the tab after a short delay
+    setTimeout(() => {
+      window.close();
+    }, 2000);
+  </script>
+</body>
+</html>`;
+  };
+
   if (error) {
     console.error('OAuth error:', error);
-    return res.redirect('/?error=oauth_error');
+    return res.send(renderPage(false, 'Google authorization was denied or failed. Please try again.'));
   }
 
   if (!code || typeof code !== 'string') {
-    return res.redirect('/?error=no_code');
+    return res.send(renderPage(false, 'No authorization code received. Please try again.'));
   }
 
   try {
     const { email } = await handleOAuthCallback(code, userId);
     console.log(`Successfully authenticated user: ${email}`);
     
-    // Redirect to the app UI
-    res.redirect('/?auth=success');
+    res.send(renderPage(
+      true, 
+      'You can now return to ChatGPT and manage your calendar invitations.',
+      email
+    ));
   } catch (err: any) {
     console.error('OAuth callback error:', err);
-    res.redirect(`/?error=auth_failed&message=${encodeURIComponent(err.message)}`);
+    res.send(renderPage(false, `Authentication failed: ${err.message}`));
   }
 });
 
