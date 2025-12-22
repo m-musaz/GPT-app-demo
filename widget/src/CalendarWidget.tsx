@@ -27,10 +27,10 @@ const theme = {
 
   // Text
   textPrimary: (isDark: boolean) =>
-    isDark ? "text-slate-50" : "text-slate-900",
+    isDark ? "text-white" : "text-slate-900",
 
   textSecondary: (isDark: boolean) =>
-    isDark ? "text-slate-300" : "text-slate-600",
+    isDark ? "text-black" : "text-slate-600",
 
   textMuted: (isDark: boolean) =>
     isDark ? "text-slate-400/80" : "text-slate-500",
@@ -166,10 +166,10 @@ function AuthView({ initialAuthData }: { initialAuthData: AuthStatusOutput | nul
               Loading...
             </>
           ) : (
-            <>
+            <div className='text-secondary'>
               <Calendar />
               View Pending Invites
-            </>
+            </div>
           )}
         </Button>
       </div>
