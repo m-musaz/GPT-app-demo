@@ -44,7 +44,7 @@ function getWidgetResources(): WidgetResource[] {
   const baseUrl = getWidgetBaseUrl();
   
   return [
-    // Unified calendar widget with React Router
+    // Unified calendar widget with React Router for all views
     {
       uri: 'ui://widget/calendar-widget.html',
       name: 'Calendar Widget',
@@ -54,41 +54,6 @@ function getWidgetResources(): WidgetResource[] {
           connect_domains: [baseUrl, 'https://accounts.google.com'],
           resource_domains: [baseUrl],
           redirect_domains: ['https://accounts.google.com'],
-        },
-      },
-    },
-    // Legacy widgets (kept for backward compatibility)
-    {
-      uri: 'ui://widget/pending-invites.html',
-      name: 'Pending Invites Widget',
-      mimeType: 'text/html+skybridge',
-      _meta: {
-        'openai/widgetCSP': {
-          connect_domains: [baseUrl, 'https://accounts.google.com'],
-          resource_domains: [baseUrl],
-        },
-      },
-    },
-    {
-      uri: 'ui://widget/auth-status.html',
-      name: 'Auth Status Widget',
-      mimeType: 'text/html+skybridge',
-      _meta: {
-        'openai/widgetCSP': {
-          connect_domains: [baseUrl, 'https://accounts.google.com'],
-          resource_domains: [baseUrl],
-          redirect_domains: ['https://accounts.google.com'],
-        },
-      },
-    },
-    {
-      uri: 'ui://widget/respond-result.html',
-      name: 'Respond Result Widget',
-      mimeType: 'text/html+skybridge',
-      _meta: {
-        'openai/widgetCSP': {
-          connect_domains: [baseUrl],
-          resource_domains: [baseUrl],
         },
       },
     },

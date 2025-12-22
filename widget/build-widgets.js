@@ -6,8 +6,8 @@ import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-// Build unified widget + legacy widgets for backward compatibility
-const widgets = ['calendar-widget', 'pending-invites', 'auth-status', 'respond-result'];
+// Only build the unified calendar widget
+const widgets = ['calendar-widget'];
 
 async function buildWidgets() {
   for (const widget of widgets) {
@@ -22,7 +22,7 @@ async function buildWidgets() {
       ],
       build: {
         outDir: 'dist',
-        emptyOutDir: widget === widgets[0], // Only empty on first build
+        emptyOutDir: true,
         assetsInlineLimit: 100000000,
         cssCodeSplit: false,
         minify: 'esbuild',
@@ -39,8 +39,7 @@ async function buildWidgets() {
     console.log(`✓ ${widget} built`);
   }
   
-  console.log('\nAll widgets built successfully!');
+  console.log('\nWidget built successfully!');
 }
 
 buildWidgets().catch(console.error);
-
