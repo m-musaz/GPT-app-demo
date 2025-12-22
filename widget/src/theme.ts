@@ -3,26 +3,32 @@ export const theme = {
   // Containers
   card: (isDark: boolean) =>
     isDark
-      ? "bg-slate-900/80 border-slate-800 shadow-sm"
-      : "bg-white border-slate-200 shadow-sm",
+      ? "bg-slate-900/80 border-white shadow-sm"
+      : "bg-white border border-gray-200 shadow-xl",
 
   cardInner: (isDark: boolean) =>
     isDark
-      ? "bg-slate-950/40 border-slate-800/80"
+      ? "bg-black/40 border-slate-800/80"
       : "bg-slate-50 border-slate-200",
 
   surface: (isDark: boolean) =>
-    isDark ? "bg-slate-950/60" : "bg-slate-100",
+    isDark ? "bg-black/60" : "bg-slate-100",
 
   // Text
   textPrimary: (isDark: boolean) =>
-    isDark ? "text-white" : "text-slate-900",
+    isDark ? "text-white" : "text-black",
 
   textSecondary: (isDark: boolean) =>
-    isDark ? "text-black" : "text-slate-600",
+    isDark ? "text-white" : "text-slate-600",
 
   textMuted: (isDark: boolean) =>
-    isDark ? "text-slate-400/80" : "text-slate-500",
+    isDark ? "text-white" : "text-slate-500",
+
+  buttonShadow: () =>
+    'hover:shadow-xl transition-all duration-200 border shadow-md ',
+
+  buttonBorder: (isDark: boolean) =>
+    isDark ? "border-gray-200" : "border-gray-200",
 
   // Icon chips
   iconBg: (isDark: boolean) =>
