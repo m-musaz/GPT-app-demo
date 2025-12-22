@@ -10,7 +10,28 @@ import './main.css';
 const POLL_INTERVAL_MS = 3000; // 3 seconds
 const MAX_POLL_DURATION_MS = 5 * 60 * 1000; // 5 minutes (OAuth link expiry)
 
-function Connected({ email, sendFollowUp, isDark }: { email?: string | null; sendFollowUp: (msg: string) => void; isDark: boolean }) {
+interface ConnectedProps {
+  email?: string | null;
+  isDark: boolean;
+  callTool: (name: string, args: Record<string, unknown>) => Promise<unknown>;
+}
+
+function Connected({ email, isDark, callTool }: ConnectedProps) {
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleViewInvites = async () => {
+    try {
+      setIsLoading(true);
+      console.log('[Widget] Calling get_pending_reservations...');
+      // Call the tool directly - ChatGPT will render the pending-invites widget
+      await callTool('get_pending_reservations', {});
+    } catch (err) {
+      console.error('[Widget] Failed to get pending invites:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // If dark mode, show white widget. If light mode, show dark widget.
   return (
     <div className={`p-6 rounded-xl border shadow-sm ${isDark ? 'bg-white border-gray-200' : 'bg-zinc-900 border-zinc-700'}`}>
@@ -34,9 +55,18 @@ function Connected({ email, sendFollowUp, isDark }: { email?: string | null; sen
         </div>
       )}
 
-      <Button color="primary" block onClick={() => sendFollowUp('Show my pending calendar invitations')}>
-        <Calendar />
-        View Pending Invites
+      <Button color="primary" block onClick={handleViewInvites} disabled={isLoading}>
+        {isLoading ? (
+          <>
+            <div className="size-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+            Loading...
+          </>
+        ) : (
+          <>
+            <Calendar />
+            View Pending Invites
+          </>
+        )}
       </Button>
     </div>
   );
@@ -124,7 +154,7 @@ function Loading({ isDark }: { isDark: boolean }) {
 }
 
 export default function AuthStatus() {
-  const { data, theme, isLoading, error, openExternal, sendFollowUp, notifyHeight, callTool, setWidgetState, openai } = useOpenAI<AuthStatusOutput>();
+  const { data, theme, isLoading, error, openExternal, notifyHeight, callTool, setWidgetState, openai } = useOpenAI<AuthStatusOutput>();
   const isDark = theme === 'dark';
   
   // Local state for polling and auth data (overrides initial data when polling succeeds)
@@ -239,7 +269,7 @@ export default function AuthStatus() {
   }
 
   return currentData.authenticated 
-    ? <Connected email={currentData.email} sendFollowUp={sendFollowUp} isDark={isDark} /> 
+    ? <Connected email={currentData.email} callTool={callTool} isDark={isDark} /> 
     : <NotConnected 
         authUrl={currentData.authUrl || ''} 
         openExternal={openExternal} 
