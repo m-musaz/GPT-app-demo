@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { useOpenAI } from './useOpenAI';
 import { WidgetContext, useWidget, type WidgetContextType } from './WidgetContext';
-import { AuthView, InvitesView, ResultView } from './components';
+import { AuthView, InvitesView } from './components';
 import { theme } from './theme';
-import type { AuthStatusOutput, PendingInvitesOutput, RespondResultOutput } from './types';
+import type { AuthStatusOutput, PendingInvitesOutput } from './types';
 import './main.css';
 
 // ============================================
@@ -13,7 +13,7 @@ import './main.css';
 function WidgetRouter({ initialData }: { initialData: unknown }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { setAuthData, setInvitesData, setRespondData, authData } = useWidget();
+  const { setAuthData, setInvitesData, authData } = useWidget();
   const [initialRouteSet, setInitialRouteSet] = useState(false);
   
   useEffect(() => {
@@ -34,15 +34,6 @@ function WidgetRouter({ initialData }: { initialData: unknown }) {
       // Also mark as authenticated since we could fetch invites
       setAuthData({ authenticated: true });
       navigate('/invites', { replace: true });
-      setInitialRouteSet(true);
-      return;
-    }
-    
-    // Check if it's respond result data (has 'success' and 'response')
-    if ('success' in data && 'response' in data) {
-      console.log('[Widget] Detected respond result data, navigating to /result');
-      setRespondData(data as unknown as RespondResultOutput);
-      navigate('/result', { replace: true });
       setInitialRouteSet(true);
       return;
     }
@@ -69,7 +60,7 @@ function WidgetRouter({ initialData }: { initialData: unknown }) {
     // Unknown data type, stay on current route
     console.log('[Widget] Unknown data type, staying on current route');
     setInitialRouteSet(true);
-  }, [initialData, initialRouteSet, navigate, setAuthData, setInvitesData, setRespondData]);
+  }, [initialData, initialRouteSet, navigate, setAuthData, setInvitesData]);
 
   // Derive initial auth data for AuthView
   const initialAuthData: AuthStatusOutput | null = (() => {
@@ -93,7 +84,6 @@ function WidgetRouter({ initialData }: { initialData: unknown }) {
     <Routes>
       <Route path="/" element={<AuthView initialAuthData={initialAuthData} />} />
       <Route path="/invites" element={<InvitesView />} />
-      <Route path="/result" element={<ResultView />} />
     </Routes>
   );
 }
@@ -104,7 +94,6 @@ export default function CalendarWidget() {
   
   const [authData, setAuthData] = useState<AuthStatusOutput | null>(null);
   const [invitesData, setInvitesData] = useState<PendingInvitesOutput | null>(null);
-  const [respondData, setRespondData] = useState<RespondResultOutput | null>(null);
 
   useEffect(() => {
     const state = openai?.widgetState as { 
@@ -112,14 +101,12 @@ export default function CalendarWidget() {
       email?: string;
       view?: string;
       invites?: PendingInvitesOutput;
-      result?: RespondResultOutput;
     } | null;
     
     if (state?.authenticated) {
       setAuthData({ authenticated: true, email: state.email || undefined });
     }
     if (state?.invites) setInvitesData(state.invites);
-    if (state?.result) setRespondData(state.result);
   }, [openai?.widgetState]);
 
   const contextValue: WidgetContextType = {
@@ -133,8 +120,6 @@ export default function CalendarWidget() {
     setAuthData,
     invitesData,
     setInvitesData,
-    respondData,
-    setRespondData,
   };
 
   if (isLoading) {

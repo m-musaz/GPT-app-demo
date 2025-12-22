@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '@openai/apps-sdk-ui/components/Button';
 import { Badge } from '@openai/apps-sdk-ui/components/Badge';
 import { Calendar, Check } from '@openai/apps-sdk-ui/components/Icon';
 import { useWidget } from '../WidgetContext';
@@ -73,40 +72,40 @@ export function AuthView({ initialAuthData }: AuthViewProps) {
   // Connected State
   if (isAuthenticated) {
     return (
-      <div className={`p-6 rounded-xl border shadow-sm ${theme.card(isDark)}`}>
+      <div className={`rounded-2xl shadow-lg border p-8 relative overflow-hidden ${theme.card(isDark)}`}>
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <div className={`size-12 rounded-xl flex items-center justify-center ${theme.iconBgSuccess(isDark)}`}>
-              <Check className="size-6 text-emerald-500" />
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-green-600 dark:from-green-600 dark:to-green-700 flex items-center justify-center shadow-lg shadow-green-500/25 dark:shadow-green-500/20">
+            <Check className={`size-6 text-white`} />
             </div>
             <div>
               <h2 className={`text-lg font-semibold ${theme.textPrimary(isDark)}`}>Connected</h2>
-              <p className={`text-sm ${theme.textSecondary(isDark)}`}>Google Calendar linked</p>
+              <p className={`text-sm ${theme.textPrimary(isDark)}`}>Google Calendar linked</p>
             </div>
           </div>
-          <Badge color="success">Active</Badge>
+          <Badge className='p-6 rounded-full' color="success">Active</Badge>
         </div>
 
         {currentAuth?.email && (
-          <div className={`mb-6 p-4 rounded-xl border ${theme.cardInner(isDark)}`}>
-            <p className={`text-xs uppercase tracking-wide font-medium mb-1 ${theme.textMuted(isDark)}`}>Signed in as</p>
+          <div className={`mb-6 p-4 rounded-xl border ${theme.card(isDark)}`}>
+            <p className={`text-xs uppercase tracking-wide font-medium mb-1 ${theme.textPrimary(isDark)}`}>Signed in as</p>
             <p className={`text-sm font-medium ${theme.textPrimary(isDark)}`}>{currentAuth.email}</p>
           </div>
         )}
 
-        <Button color="primary" block onClick={handleViewInvites} disabled={isLoadingInvites}>
           {isLoadingInvites ? (
             <>
-              <div className="size-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
-              Loading...
+              <div className={`size-8 m-auto rounded-full border-2 border-t-transparent animate-spin ${theme.spinner(isDark)}`} />
             </>
           ) : (
-            <div className='text-secondary'>
+            <button className={`w-full bg-white h-12 flex items-center justify-center gap-3 font-medium rounded-xl text-black ${theme.buttonShadow()} ${theme.buttonBorder(isDark)}`}
+            onClick={handleViewInvites}
+            disabled={isLoadingInvites}
+            >
               <Calendar />
               View Pending Invites
-            </div>
+            </button>
           )}
-        </Button>
       </div>
     );
   }
@@ -115,7 +114,6 @@ export function AuthView({ initialAuthData }: AuthViewProps) {
   return (
     <div className={`rounded-2xl shadow-lg border p-8 relative overflow-hidden ${theme.card(isDark)}`}>
       {/* Subtle gradient accent */}
-      <div className={`absolute inset-0 pointer-events-none ${isDark ? 'bg-linear-to-br from-blue-900/20 via-transparent to-transparent' : 'bg-linear-to-br from-blue-50/30 via-transparent to-transparent'}`} />
       
       <div className="relative">
         {/* Icon Container */}
@@ -141,7 +139,7 @@ export function AuthView({ initialAuthData }: AuthViewProps) {
         {isPolling ? (
           <div className="flex flex-col items-center gap-3 py-2 mb-6">
             <div className={`size-6 rounded-full border-2 border-t-blue-500 animate-spin ${theme.spinner(isDark)}`} />
-            <p className={`text-xs ${theme.textMuted(isDark)}`}>
+            <p className={`text-xs ${theme.textPrimary(isDark)}`}>
               Checking every few seconds...
             </p>
           </div>

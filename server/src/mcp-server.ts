@@ -10,7 +10,7 @@ import {
   getPendingInvites,
   respondToInvite,
 } from './calendar-service.js';
-import { isAuthenticated, getAuthUrl } from './google-auth.js';
+import { isAuthenticated, getAuthUrl, getUserEmail } from './google-auth.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -304,7 +304,7 @@ function handleCheckAuthStatus(userId: string): AppsToolResponse {
       content: [{ type: 'text', text: 'User is connected to Google Calendar.' }],
       structuredContent: {
         authenticated: true,
-        email: null,
+        email: getUserEmail(userId),
       },
       _meta: {
         'openai/outputTemplate': 'ui://widget/calendar-widget.html',

@@ -3,8 +3,8 @@ export const theme = {
   // Containers
   card: (isDark: boolean) =>
     isDark
-      ? "bg-slate-900/80 border-white shadow-sm"
-      : "bg-white border border-gray-200 shadow-xl",
+      ? "bg-slate-950 border-white shadow-sm"
+      : "bg-gradient-to-br from-slate-50 via-slate-50 to-slate-100 border border-gray-200 shadow-xl",
 
   cardInner: (isDark: boolean) =>
     isDark
@@ -19,10 +19,7 @@ export const theme = {
     isDark ? "text-white" : "text-black",
 
   textSecondary: (isDark: boolean) =>
-    isDark ? "text-white" : "text-slate-600",
-
-  textMuted: (isDark: boolean) =>
-    isDark ? "text-white" : "text-slate-500",
+    isDark ? "text-black" : "text-black",
 
   buttonShadow: () =>
     'hover:shadow-xl transition-all duration-200 border shadow-md ',
@@ -34,11 +31,8 @@ export const theme = {
   iconBg: (isDark: boolean) =>
     isDark ? "bg-sky-500/12" : "bg-sky-100/70",
 
-  iconBgSuccess: (isDark: boolean) =>
-    isDark ? "bg-emerald-500/12" : "bg-emerald-100/70",
-
   // Spinners
   spinner: (isDark: boolean) =>
-    isDark ? "border-slate-700" : "border-slate-300",
+    isDark ? "border-white" : "border-black",
 };
 

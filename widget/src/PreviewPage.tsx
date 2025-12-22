@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation, Link } from 'react-router-dom';
 import { WidgetContext, type WidgetContextType } from './WidgetContext';
-import { AuthView, InvitesView, ResultView } from './components';
-import type { AuthStatusOutput, PendingInvitesOutput, RespondResultOutput } from './types';
+import { AuthView, InvitesView } from './components';
+import type { AuthStatusOutput, PendingInvitesOutput } from './types';
 import './main.css';
 
 // Mock data
@@ -61,23 +61,6 @@ const mockEmptyInvites: PendingInvitesOutput = {
   invites: []
 };
 
-const mockResultAccepted: RespondResultOutput = {
-  success: true,
-  response: 'accepted',
-  eventSummary: 'Team Standup Meeting'
-};
-
-const mockResultDeclined: RespondResultOutput = {
-  success: true,
-  response: 'declined',
-  eventSummary: 'Product Review Session'
-};
-
-const mockResultError: RespondResultOutput = {
-  success: false,
-  error: 'Failed to update calendar event'
-};
-
 function PreviewNav() {
   const location = useLocation();
   const isDark = location.pathname.includes('dark');
@@ -87,9 +70,6 @@ function PreviewNav() {
     { path: '/auth-connected', label: 'Auth (Connected)' },
     { path: '/invites', label: 'Invites List' },
     { path: '/invites-empty', label: 'Invites (Empty)' },
-    { path: '/result-accepted', label: 'Result (Accepted)' },
-    { path: '/result-declined', label: 'Result (Declined)' },
-    { path: '/result-error', label: 'Result (Error)' },
   ];
 
   return (
@@ -158,7 +138,6 @@ function PreviewRoutes() {
   
   const [authData, setAuthData] = useState<AuthStatusOutput | null>(null);
   const [invitesData, setInvitesData] = useState<PendingInvitesOutput | null>(null);
-  const [respondData, setRespondData] = useState<RespondResultOutput | null>(null);
   
   // Set data based on current route
   useEffect(() => {
@@ -168,14 +147,6 @@ function PreviewRoutes() {
       setInvitesData(mockEmptyInvites);
     } else if (path.includes('/invites')) {
       setInvitesData(mockInvites);
-    }
-    
-    if (path.includes('/result-accepted')) {
-      setRespondData(mockResultAccepted);
-    } else if (path.includes('/result-declined')) {
-      setRespondData(mockResultDeclined);
-    } else if (path.includes('/result-error')) {
-      setRespondData(mockResultError);
     }
   }, [location.pathname]);
   
@@ -204,8 +175,6 @@ function PreviewRoutes() {
     setAuthData,
     invitesData,
     setInvitesData,
-    respondData,
-    setRespondData,
   };
 
   return (
@@ -226,15 +195,6 @@ function PreviewRoutes() {
               
               <Route path="/invites-empty" element={<InvitesView />} />
               <Route path="/invites-empty/dark" element={<InvitesView />} />
-              
-              <Route path="/result-accepted" element={<ResultView />} />
-              <Route path="/result-accepted/dark" element={<ResultView />} />
-              
-              <Route path="/result-declined" element={<ResultView />} />
-              <Route path="/result-declined/dark" element={<ResultView />} />
-              
-              <Route path="/result-error" element={<ResultView />} />
-              <Route path="/result-error/dark" element={<ResultView />} />
               
               <Route path="/" element={<AuthView initialAuthData={mockAuthNotConnected} />} />
             </Routes>
