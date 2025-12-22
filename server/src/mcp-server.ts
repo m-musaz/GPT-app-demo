@@ -164,7 +164,7 @@ function getTools(): AppsTool[] {
       },
       _meta: {
         'openai/outputTemplate': 'ui://widget/calendar-widget.html',
-        'openai/visibility': 'private', // Hidden from ChatGPT UI - users use get_pending_reservations instead
+        'openai/visibility': 'public', // Hidden from ChatGPT UI - users use get_pending_reservations instead
         'openai/widgetAccessible': true, // Widget can still call this for polling auth status
       },
     },
