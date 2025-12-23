@@ -185,7 +185,7 @@ get_pending_reservations({ start_date?, end_date? })
 #### 5. **Responding to Invitations**
 ```typescript
 // Tool call from ChatGPT
-respond_to_invite({ event_id: "abc123", response: "accepted" })
+respond_to_invite({ event_id: "abc123", event_title: "Team Standup", response: "accepted" })
 
 // Server flow:
 1. Extract userId from request
@@ -303,7 +303,7 @@ function handleViewInvites() {
 // Handle response (inline, no navigation)
 async function handleRespond(eventId, response) {
   setStatus('loading');
-  await callTool('respond_to_invite', { event_id: eventId, response });
+  await callTool('respond_to_invite', { event_id: eventId, event_title: eventTitle, response });
   setStatus(response); // Show "Accepted", "Declined", or "Maybe"
 }
 
@@ -619,12 +619,15 @@ Each MCP tool declares its authentication requirements via `securitySchemes`:
   ]
 }
 
-// check_auth_status - No authentication required
+// check_auth_status - No authentication required (private visibility)
 {
   name: 'check_auth_status',
   securitySchemes: [
     { type: 'noauth' }
-  ]
+  ],
+  _meta: {
+    'openai/visibility': 'private' // Only widget can call this
+  }
 }
 ```
 
@@ -767,6 +770,8 @@ redirect_uris: [
 
 Check if the current user is authenticated with Google Calendar.
 
+**Visibility:** `private` (Hidden from ChatGPT, only accessible by widget for polling auth status)
+
 **Input Schema:**
 ```json
 {}
@@ -858,6 +863,7 @@ Accept, decline, or mark a calendar invitation as tentative.
 ```json
 {
   "event_id": "abc123",               // Required
+  "event_title": "Team Standup",      // Optional: Used for user-friendly confirmation messages
   "response": "accepted"              // Required: "accepted" | "declined" | "tentative"
 }
 ```
@@ -873,7 +879,7 @@ Accept, decline, or mark a calendar invitation as tentative.
 }
 ```
 
-**Widget Template:** `ui://widget/calendar-widget.html`
+**Note:** This tool does not show a widget UI - it returns a simple text confirmation.
 
 ---
 
@@ -1052,7 +1058,7 @@ Widget navigates to /invites and displays list
 ```
 User clicks "Accept" on an invite
           ↓
-Widget calls callTool('respond_to_invite', { event_id, response })
+Widget calls callTool('respond_to_invite', { event_id, event_title, response })
           ↓
 MCP Server extracts userId
           ↓
