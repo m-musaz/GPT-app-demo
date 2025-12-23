@@ -137,13 +137,17 @@ function getTools(): AppsTool[] {
     {
       name: 'respond_to_invite',
       title: 'Respond to Invite',
-      description: 'Respond to a pending calendar invitation. You can accept, decline, or mark the invitation as tentative. When calling this tool, always refer to the event by its title/summary (e.g., "Team Standup Meeting") when confirming with the user, not by its ID.',
+      description: 'Respond to a pending calendar invitation. You can accept, decline, or mark the invitation as tentative. When asking the user for confirmation, use the event_title parameter to refer to the meeting (e.g., "Should I accept Team Standup Meeting?").',
       inputSchema: {
         type: 'object',
         properties: {
           event_id: {
             type: 'string',
-            description: 'The event ID from the invites list. When confirming with the user, use the event summary/title instead of showing this ID.',
+            description: 'The unique event ID from the invites list. This is used to identify which event to respond to.',
+          },
+          event_title: {
+            type: 'string',
+            description: 'The title/summary of the event from the invites list. Use this when asking the user for confirmation (e.g., "Team Standup Meeting"). This helps make the confirmation message more readable. If not provided, defaults to "this meeting".',
           },
           response: {
             type: 'string',
@@ -250,7 +254,7 @@ async function handleGetPendingReservations(
  * Handle respond_to_invite tool
  */
 async function handleRespondToInvite(
-  args: { event_id: string; response: 'accepted' | 'declined' | 'tentative' },
+  args: { event_id: string; event_title?: string; response: 'accepted' | 'declined' | 'tentative' },
   userId: string
 ): Promise<AppsToolResponse> {
   if (!args.event_id) {
@@ -282,7 +286,7 @@ async function handleRespondToInvite(
     const result = await respondToInvite(userId, args.event_id, args.response);
     
     const action = args.response === 'accepted' ? 'accepted' : args.response === 'declined' ? 'declined' : 'marked as tentative';
-    const eventTitle = result.eventSummary || 'the invitation';
+    const eventTitle = args.event_title || result.eventSummary || 'this meeting';
     
     return {
       content: [{ type: 'text', text: `Successfully ${action} "${eventTitle}"` }],
@@ -400,7 +404,7 @@ export function createMCPServer(): Server {
 
       case 'respond_to_invite':
         return await handleRespondToInvite(
-          args as { event_id: string; response: 'accepted' | 'declined' | 'tentative' },
+          args as { event_id: string; event_title?: string; response: 'accepted' | 'declined' | 'tentative' },
           userId
         ) as unknown as CallToolResult;
 
@@ -561,7 +565,7 @@ export async function handleMCPRequest(
 
         case 'respond_to_invite':
           return await handleRespondToInvite(
-            args as { event_id: string; response: 'accepted' | 'declined' | 'tentative' },
+            args as { event_id: string; event_title?: string; response: 'accepted' | 'declined' | 'tentative' },
             toolUserId
           );
 

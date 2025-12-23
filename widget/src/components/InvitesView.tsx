@@ -10,7 +10,7 @@ import type { PendingInvite, PendingInvitesOutput } from '../types';
 
 interface InviteCardProps {
   invite: PendingInvite;
-  onRespond: (eventId: string, response: string) => Promise<void>;
+  onRespond: (eventId: string, eventTitle: string, response: string) => Promise<void>;
   isDark: boolean;
 }
 
@@ -21,7 +21,7 @@ function InviteCard({ invite, onRespond, isDark }: InviteCardProps) {
   const handleRespond = async (response: 'accepted' | 'declined' | 'tentative') => {
     setStatus('loading');
     try {
-      await onRespond(invite.eventId, response);
+      await onRespond(invite.eventId, invite.summary || 'this meeting', response);
       setStatus(response);
     } catch {
       setStatus('error');
@@ -167,9 +167,9 @@ export function InvitesView() {
 
   useEffect(() => { notifyHeight(); }, [invitesData, isRefreshing, notifyHeight]);
 
-  const handleRespond = async (eventId: string, response: string) => {
+  const handleRespond = async (eventId: string, eventTitle: string, response: string) => {
     try {
-      await callTool('respond_to_invite', { event_id: eventId, response });
+      await callTool('respond_to_invite', { event_id: eventId, event_title: eventTitle, response });
       // Response is shown inline in the InviteCard, no need to navigate
     } catch (err) {
       console.error('[Widget] Failed to respond:', err);
