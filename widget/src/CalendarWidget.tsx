@@ -95,7 +95,11 @@ export default function CalendarWidget() {
   const [authData, setAuthData] = useState<AuthStatusOutput | null>(null);
   const [invitesData, setInvitesData] = useState<PendingInvitesOutput | null>(null);
 
+  // Only restore from widgetState if there's no fresh data from the tool call
   useEffect(() => {
+    // If we have fresh data from the tool call, don't load from cache
+    if (data) return;
+    
     const state = openai?.widgetState as { 
       authenticated?: boolean;
       email?: string;
@@ -107,7 +111,7 @@ export default function CalendarWidget() {
       setAuthData({ authenticated: true, email: state.email || undefined });
     }
     if (state?.invites) setInvitesData(state.invites);
-  }, [openai?.widgetState]);
+  }, [openai?.widgetState, data]);
 
   const contextValue: WidgetContextType = {
     theme: appTheme,

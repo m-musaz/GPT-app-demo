@@ -137,13 +137,13 @@ function getTools(): AppsTool[] {
     {
       name: 'respond_to_invite',
       title: 'Respond to Invite',
-      description: 'Respond to a pending calendar invitation. You can accept, decline, or mark the invitation as tentative.',
+      description: 'Respond to a pending calendar invitation. You can accept, decline, or mark the invitation as tentative. When calling this tool, always refer to the event by its title/summary (e.g., "Team Standup Meeting") when confirming with the user, not by its ID.',
       inputSchema: {
         type: 'object',
         properties: {
           event_id: {
             type: 'string',
-            description: 'The unique identifier of the calendar event to respond to.',
+            description: 'The event ID from the invites list. When confirming with the user, use the event summary/title instead of showing this ID.',
           },
           response: {
             type: 'string',
@@ -283,9 +283,10 @@ async function handleRespondToInvite(
     const result = await respondToInvite(userId, args.event_id, args.response);
     
     const action = args.response === 'accepted' ? 'accepted' : args.response === 'declined' ? 'declined' : 'marked as tentative';
+    const eventTitle = result.eventSummary || 'the invitation';
     
     return {
-      content: [{ type: 'text', text: `Successfully ${action} the invitation.` }],
+      content: [{ type: 'text', text: `Successfully ${action} "${eventTitle}"` }],
       structuredContent: {
         success: true,
         response: args.response,
