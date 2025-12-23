@@ -9,6 +9,11 @@ export interface PendingInvite {
   isAllDay: boolean;
   organizerEmail: string;
   organizerName: string | null;
+  attendees?: {
+    email: string;
+    name: string | null;
+    status: string;
+  }[];
   calendarLink: string;
 }
 

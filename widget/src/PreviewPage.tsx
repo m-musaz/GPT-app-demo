@@ -21,30 +21,43 @@ const mockInvites: PendingInvitesOutput = {
     {
       eventId: '1',
       summary: 'Team Standup Meeting',
-      description: 'Daily standup to discuss progress and blockers',
+      description: 'Daily standup to discuss progress and blockers. Please come prepared with updates on your current tasks and any blockers you\'re facing.',
       organizerName: 'John Smith',
       organizerEmail: 'john@company.com',
       startTime: new Date(Date.now() + 86400000).toISOString(),
       endTime: new Date(Date.now() + 86400000 + 1800000).toISOString(), // 30 min later
       isAllDay: false,
       location: 'Conference Room A',
-      calendarLink: 'https://calendar.google.com/event?eid=abc123'
+      calendarLink: 'https://calendar.google.com/event?eid=abc123',
+      attendees: [
+        { email: 'you@company.com', name: 'You', status: 'needsAction' },
+        { email: 'john@company.com', name: 'John Smith', status: 'accepted' },
+        { email: 'alice@company.com', name: 'Alice Johnson', status: 'accepted' },
+        { email: 'bob@company.com', name: 'Bob Williams', status: 'tentative' },
+        { email: 'carol@company.com', name: 'Carol Davis', status: 'declined' }
+      ]
     },
     {
       eventId: '2',
-      summary: 'Product Review Session',
-      description: 'Quarterly product review and planning session',
+      summary: 'Q1 Product Review Session',
+      description: 'Quarterly product review and planning session. We will cover:\n\n1. Q4 achievements and metrics\n2. Q1 goals and roadmap\n3. Customer feedback review\n4. Resource allocation for upcoming features\n\nPlease review the Q4 summary doc before the meeting.',
       organizerName: 'Sarah Johnson',
       organizerEmail: 'sarah@company.com',
       startTime: new Date(Date.now() + 172800000).toISOString(),
       endTime: new Date(Date.now() + 172800000 + 3600000).toISOString(), // 1 hour later
       isAllDay: false,
-      location: 'Zoom Meeting',
-      calendarLink: 'https://calendar.google.com/event?eid=def456'
+      location: 'Zoom Meeting: https://zoom.us/j/123456789',
+      calendarLink: 'https://calendar.google.com/event?eid=def456',
+      attendees: [
+        { email: 'you@company.com', name: 'You', status: 'needsAction' },
+        { email: 'sarah@company.com', name: 'Sarah Johnson', status: 'accepted' },
+        { email: 'mike@company.com', name: 'Mike Chen', status: 'accepted' },
+        { email: 'emma@company.com', name: null, status: 'accepted' },
+      ]
     },
     {
       eventId: '3',
-      summary: 'Client Presentation',
+      summary: 'Client Presentation - Acme Corp',
       description: null,
       organizerName: null,
       organizerEmail: 'client@external.com',
@@ -52,7 +65,11 @@ const mockInvites: PendingInvitesOutput = {
       endTime: new Date(Date.now() + 259200000 + 5400000).toISOString(), // 1.5 hours later
       isAllDay: false,
       location: null,
-      calendarLink: 'https://calendar.google.com/event?eid=ghi789'
+      calendarLink: 'https://calendar.google.com/event?eid=ghi789',
+      attendees: [
+        { email: 'you@company.com', name: 'You', status: 'needsAction' },
+        { email: 'client@external.com', name: 'External Client', status: 'accepted' },
+      ]
     }
   ]
 };
