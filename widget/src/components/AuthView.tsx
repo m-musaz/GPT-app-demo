@@ -125,14 +125,21 @@ export function AuthView({ initialAuthData }: AuthViewProps) {
 
         {/* Title */}
         <h1 className={`text-2xl font-semibold text-center mb-3 ${theme.textPrimary(isDark)}`}>
-          {isPolling ? 'Waiting for Sign In...' : 'Connect Google Calendar'}
+          {isPolling 
+            ? 'Waiting for Sign In...' 
+            : currentAuth?.authUrl 
+              ? 'Connect Google Calendar' 
+              : 'Setting Up Calendar Access'
+          }
         </h1>
 
         {/* Description */}
         <p className={`text-center leading-relaxed mb-8 ${theme.textPrimary(isDark)}`}>
           {isPolling 
             ? 'Complete the sign-in in the new tab. This will update automatically.'
-            : 'Link your Google account to manage calendar invitations directly from ChatGPT'
+            : currentAuth?.authUrl
+              ? 'Link your Google account to manage calendar invitations directly from ChatGPT'
+              : 'Preparing your calendar connection and checking authentication...'
           }
         </p>
 

@@ -13,20 +13,12 @@ export function DateRangeSelector({ isDark, isRefreshing, onRangeChange }: DateR
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
-  const handleQuickRange = (range: 'past-week' | 'past-month' | 'next-2-weeks' | 'next-month' | 'custom') => {
+  const handleQuickRange = (range: 'next-2-weeks' | 'next-month' | 'custom') => {
     const now = new Date();
     let start = '';
     let end = '';
 
     switch (range) {
-      case 'past-week':
-        start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-        end = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString();
-        break;
-      case 'past-month':
-        start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
-        end = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString();
-        break;
       case 'next-2-weeks':
         start = now.toISOString();
         end = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString();
@@ -97,7 +89,7 @@ export function DateRangeSelector({ isDark, isRefreshing, onRangeChange }: DateR
           </div>
           <div className="flex gap-2">
             <Button
-              className={`flex-1 rounded-xl py-2 text-white ${theme.buttonShadow()}`}
+              className={`flex-1 rounded-xl py-2 ${theme.textPrimary(isDark)} ${theme.buttonBorder(isDark)} ${theme.buttonShadow()}`}
               color="primary"
               size="sm"
               onClick={handleCustomDateRange}
@@ -106,7 +98,7 @@ export function DateRangeSelector({ isDark, isRefreshing, onRangeChange }: DateR
               Apply
             </Button>
             <Button
-              className={`rounded-xl py-2 ${theme.textPrimary(isDark)} ${theme.buttonBorder(isDark)}`}
+              className={`rounded-xl px-2 py-2 ${theme.textPrimary(isDark)} ${theme.buttonBorder(isDark)} ${theme.buttonShadow()}`}
               variant="outline"
               color="secondary"
               size="sm"
@@ -124,8 +116,6 @@ export function DateRangeSelector({ isDark, isRefreshing, onRangeChange }: DateR
             theme.card(isDark)} ${theme.textPrimary(isDark)}`}
         >
           <option value="next-2-weeks">Next 2 Weeks (Default)</option>
-          <option value="past-week">Past Week</option>
-          <option value="past-month">Past Month</option>
           <option value="next-month">Next Month</option>
           <option value="custom">Custom Date Range...</option>
         </select>

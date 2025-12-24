@@ -241,6 +241,15 @@ export function InvitesView() {
             </div>
             <h2 className={`text-xl font-semibold mb-2 ${theme.textPrimary(isDark)}`}>All Caught Up!</h2>
             <p className={`text-sm mb-6 ${theme.textPrimary(isDark)}`}>No pending invitations in this date range.</p>
+            <button 
+              className={`${theme.textPrimary(isDark)} m-auto flex items-center justify-center p-4 rounded-xl ${theme.buttonBorder(isDark)} ${theme.buttonShadow()}`} 
+              color="secondary" 
+              onClick={() => handleRefresh()} 
+              disabled={isRefreshing}
+            >
+              <ArrowRotateCcw className="size-4 mr-2" />
+              Refresh
+            </button>
           </div>
         </div>
       ) : (
