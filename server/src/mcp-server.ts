@@ -167,6 +167,50 @@ function getTools(): AppsTool[] {
       },
     },
     {
+      name: 'batch_respond_to_invites',
+      title: 'Batch Respond to Invites',
+      description: 'Respond to multiple calendar invitations at once. Useful for accepting/declining multiple invites in bulk. When asking the user for confirmation, list all the meeting titles to make it clear which events will be affected.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          invites: {
+            type: 'array',
+            description: 'Array of invites to respond to. Each item should include the event_id, event_title (for display), and response.',
+            items: {
+              type: 'object',
+              properties: {
+                event_id: {
+                  type: 'string',
+                  description: 'The unique event ID from the invites list.',
+                },
+                event_title: {
+                  type: 'string',
+                  description: 'The title/summary of the event. Use this when confirming with the user. If not provided, defaults to "Untitled event".',
+                },
+                response: {
+                  type: 'string',
+                  enum: ['accepted', 'declined', 'tentative'],
+                  description: 'The response to send for this specific invite.',
+                },
+              },
+              required: ['event_id', 'response'],
+              additionalProperties: false,
+            },
+            minItems: 1,
+          },
+        },
+        required: ['invites'],
+        additionalProperties: false,
+      },
+      securitySchemes: [
+        { type: 'oauth2', scopes: ['calendar:write'] },
+      ],
+      _meta: {
+        'openai/visibility': 'public',
+        'openai/widgetAccessible': false,
+      },
+    },
+    {
       name: 'check_auth_status',
       title: 'Check Auth Status',
       description: 'Check if the user is authenticated with Google Calendar. Returns authentication status and provides an auth URL if not authenticated.',
@@ -309,6 +353,93 @@ async function handleRespondToInvite(
 }
 
 /**
+ * Handle batch_respond_to_invites tool
+ */
+async function handleBatchRespondToInvites(
+  args: {
+    invites: Array<{
+      event_id: string;
+      event_title?: string;
+      response: 'accepted' | 'declined' | 'tentative';
+    }>;
+  },
+  userId: string
+): Promise<AppsToolResponse> {
+  if (!isAuthenticated(userId)) {
+    const authUrl = getAuthUrl(userId);
+    return {
+      content: [{ type: 'text', text: 'User needs to authenticate with Google Calendar first.' }],
+      structuredContent: {
+        authenticated: false,
+        authUrl,
+      },
+      _meta: {
+        'openai/outputTemplate': 'ui://widget/calendar-widget.html',
+      },
+      isError: true,
+    };
+  }
+
+  const results = [];
+  const successes = [];
+  const failures = [];
+
+  // Process each invite
+  for (const invite of args.invites) {
+    const eventTitle = invite.event_title || 'Untitled event';
+    const action = invite.response === 'accepted' ? 'accepted' : invite.response === 'declined' ? 'declined' : 'marked tentative';
+
+    try {
+      const result = await respondToInvite(userId, invite.event_id, invite.response);
+      results.push({
+        eventId: invite.event_id,
+        eventTitle: result.eventSummary || eventTitle,
+        response: invite.response,
+        success: true,
+        message: result.message,
+      });
+      successes.push(`${action} "${result.eventSummary || eventTitle}"`);
+    } catch (error: any) {
+      results.push({
+        eventId: invite.event_id,
+        eventTitle,
+        response: invite.response,
+        success: false,
+        error: error.message,
+      });
+      failures.push(`Failed to ${invite.response.replace('ed', '').replace('tentative', 'mark tentative')} "${eventTitle}": ${error.message}`);
+    }
+  }
+
+  // Build summary message
+  const total = args.invites.length;
+  const successCount = successes.length;
+  const failureCount = failures.length;
+
+  let summary = '';
+  if (successCount > 0) {
+    summary += `Successfully processed ${successCount}/${total} invite${successCount !== 1 ? 's' : ''}:\n`;
+    summary += successes.map((s, i) => `${i + 1}. ${s}`).join('\n');
+  }
+  if (failureCount > 0) {
+    if (summary) summary += '\n\n';
+    summary += `Failed to process ${failureCount}/${total} invite${failureCount !== 1 ? 's' : ''}:\n`;
+    summary += failures.map((f, i) => `${i + 1}. ${f}`).join('\n');
+  }
+
+  return {
+    content: [{ type: 'text', text: summary }],
+    structuredContent: {
+      total,
+      successCount,
+      failureCount,
+      results,
+    },
+    isError: failureCount === total, // Only error if ALL failed
+  };
+}
+
+/**
  * Handle check_auth_status tool
  */
 function handleCheckAuthStatus(userId: string): AppsToolResponse {
@@ -405,6 +536,12 @@ export function createMCPServer(): Server {
       case 'respond_to_invite':
         return await handleRespondToInvite(
           args as { event_id: string; event_title?: string; response: 'accepted' | 'declined' | 'tentative' },
+          userId
+        ) as unknown as CallToolResult;
+
+      case 'batch_respond_to_invites':
+        return await handleBatchRespondToInvites(
+          args as { invites: Array<{ event_id: string; event_title?: string; response: 'accepted' | 'declined' | 'tentative' }> },
           userId
         ) as unknown as CallToolResult;
 
@@ -566,6 +703,12 @@ export async function handleMCPRequest(
         case 'respond_to_invite':
           return await handleRespondToInvite(
             args as { event_id: string; event_title?: string; response: 'accepted' | 'declined' | 'tentative' },
+            toolUserId
+          );
+
+        case 'batch_respond_to_invites':
+          return await handleBatchRespondToInvites(
+            args as { invites: Array<{ event_id: string; event_title?: string; response: 'accepted' | 'declined' | 'tentative' }> },
             toolUserId
           );
 
