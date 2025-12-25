@@ -92,6 +92,13 @@ interface AppsTool {
     required: string[];
     additionalProperties?: boolean;
   };
+  annotations?: {
+    title?: string;
+    readOnlyHint?: boolean;
+    destructiveHint?: boolean;
+    idempotentHint?: boolean;
+    openWorldHint?: boolean;
+  };
   securitySchemes?: Array<{ type: string; scopes?: string[] }>;
   _meta: {
     'openai/outputTemplate'?: string;
@@ -125,6 +132,13 @@ function getTools(): AppsTool[] {
         required: [],
         additionalProperties: false,
       },
+      annotations: {
+        title: 'Get Pending Reservations',
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       securitySchemes: [
         { type: 'oauth2', scopes: ['calendar:read'] },
       ],
@@ -157,6 +171,13 @@ function getTools(): AppsTool[] {
         },
         required: ['event_id', 'response'],
         additionalProperties: false,
+      },
+      annotations: {
+        title: 'Respond to Invite',
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
       },
       securitySchemes: [
         { type: 'oauth2', scopes: ['calendar:write'] },
@@ -203,6 +224,13 @@ function getTools(): AppsTool[] {
         required: ['invites'],
         additionalProperties: false,
       },
+      annotations: {
+        title: 'Batch Respond to Invites',
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
       securitySchemes: [
         { type: 'oauth2', scopes: ['calendar:write'] },
       ],
@@ -220,6 +248,13 @@ function getTools(): AppsTool[] {
         properties: {},
         required: [],
         additionalProperties: false,
+      },
+      annotations: {
+        title: 'Check Auth Status',
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
       },
       securitySchemes: [
         { type: 'noauth' },
